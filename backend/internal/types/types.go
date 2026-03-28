@@ -83,21 +83,21 @@ type Furniture struct {
 
 type Evidence struct {
 	ID                string          `json:"id"`
-	CaseID            string          `json:"caseId"`
+	CaseID            string          `json:"case_id"`
 	Type              string          `json:"type"`
 	Subtype           string          `json:"subtype"`
 	Title             string          `json:"title"`
 	Description       string          `json:"description"`
-	CredibilityScore  float64         `json:"credibilityScore"`
-	CredibilityReason string          `json:"credibilityReason"`
+	CredibilityScore  float64         `json:"credibility_score"`
+	CredibilityReason string          `json:"credibility_reason"`
 	Position          *Vec3           `json:"position"`
 	Rotation          *Vec3           `json:"rotation"`
-	AssetType         *string         `json:"assetType"`
-	ImageURL          *string         `json:"imageUrl"`
-	VLMAnnotation     json.RawMessage `json:"vlmAnnotation"`
+	AssetType         *string         `json:"asset_type"`
+	ImageURL          *string         `json:"image_url"`
+	VLMAnnotation     json.RawMessage `json:"vlm_annotation"`
 	Metadata          json.RawMessage `json:"metadata"`
-	StageOrder        int             `json:"stageOrder"`
-	CreatedAt         time.Time       `json:"createdAt"`
+	StageOrder        int             `json:"stage_order"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 type VLMAnnotation struct {
@@ -112,34 +112,34 @@ type VLMAnnotation struct {
 
 type Witness struct {
 	ID                  string    `json:"id"`
-	CaseID              string    `json:"caseId"`
+	CaseID              string    `json:"case_id"`
 	Name                string    `json:"name"`
 	Role                string    `json:"role"`
 	Statement           string    `json:"statement"`
-	CredibilityScore    float64   `json:"credibilityScore"`
-	CredibilityReason   string    `json:"credibilityReason"`
-	PositionDuringEvent *Vec3     `json:"positionDuringEvent"`
-	ObservationAngle    *float64  `json:"observationAngle"`
-	CorroboratedBy      []string  `json:"corroboratedBy"`
-	ContradictedBy      []string  `json:"contradictedBy"`
-	StageOrder          int       `json:"stageOrder"`
-	CreatedAt           time.Time `json:"createdAt"`
+	CredibilityScore    float64   `json:"credibility_score"`
+	CredibilityReason   string    `json:"credibility_reason"`
+	PositionDuringEvent *Vec3     `json:"position_during_event"`
+	ObservationAngle    *float64  `json:"observation_angle"`
+	CorroboratedBy      []string  `json:"corroborated_by"`
+	ContradictedBy      []string  `json:"contradicted_by"`
+	StageOrder          int       `json:"stage_order"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // === Hypothesis ===
 
 type Hypothesis struct {
 	ID                    string          `json:"id"`
-	CaseID                string          `json:"caseId"`
+	CaseID                string          `json:"case_id"`
 	Rank                  int             `json:"rank"`
 	Probability           float64         `json:"probability"`
 	Title                 string          `json:"title"`
 	Reasoning             string          `json:"reasoning"`
-	SupportingEvidence    []string        `json:"supportingEvidence"`
-	ContradictingEvidence []string        `json:"contradictingEvidence"`
+	SupportingEvidence    []string        `json:"supporting_evidence"`
+	ContradictingEvidence []string        `json:"contradicting_evidence"`
 	Timeline              []TimelineEvent `json:"timeline"`
-	StageSnapshot         int             `json:"stageSnapshot"`
-	CreatedAt             time.Time       `json:"createdAt"`
+	StageSnapshot         int             `json:"stage_snapshot"`
+	CreatedAt             time.Time       `json:"created_at"`
 }
 
 type TimelineEvent struct {
@@ -148,7 +148,7 @@ type TimelineEvent struct {
 	Action       string   `json:"action"`
 	Position     Vec3     `json:"position"`
 	Description  string   `json:"description"`
-	EvidenceRefs []string `json:"evidenceRefs"`
+	EvidenceRefs []string `json:"evidence_refs"`
 	Confidence   float64  `json:"confidence"`
 }
 
@@ -156,15 +156,15 @@ type TimelineEvent struct {
 
 type SuspectProfile struct {
 	ID              string            `json:"id"`
-	CaseID          string            `json:"caseId"`
+	CaseID          string            `json:"case_id"`
 	Name            string            `json:"name"`
 	Description     string            `json:"description"`
-	CurrentImageURL *string           `json:"currentImageUrl"`
-	RevisionHistory []ProfileRevision `json:"revisionHistory"`
-	SourceWitnessID *string           `json:"sourceWitnessId"`
+	CurrentImageURL *string           `json:"current_image_url"`
+	RevisionHistory []ProfileRevision `json:"revision_history"`
+	SourceWitnessID *string           `json:"source_witness_id"`
 	Metadata        json.RawMessage   `json:"metadata"`
-	CreatedAt       time.Time         `json:"createdAt"`
-	UpdatedAt       time.Time         `json:"updatedAt"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 type ProfileRevision struct {

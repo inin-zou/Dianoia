@@ -401,15 +401,20 @@ func (c *Client) RefineComposite(ctx context.Context, currentDescription string,
 			defer imgResp.Body.Close()
 			imgData, readErr := io.ReadAll(imgResp.Body)
 			if readErr == nil && len(imgData) > 0 {
-				mimeType := imgResp.Header.Get("Content-Type")
-				if mimeType == "" {
-					mimeType = "image/png"
+				contentType := imgResp.Header.Get("Content-Type")
+				// Clean up content type — take just the mime part before any semicolon
+				if idx := strings.Index(contentType, ";"); idx > 0 {
+					contentType = contentType[:idx]
+				}
+				contentType = strings.TrimSpace(contentType)
+				if contentType == "" {
+					contentType = "image/png"
 				}
 				parts = append([]genai.Part{
-					genai.ImageData(mimeType, imgData),
+					genai.Blob{MIMEType: contentType, Data: imgData},
 					genai.Text("This is the current suspect portrait. Apply the following modification while keeping the face 95% identical:"),
 				}, parts...)
-				log.Printf("[Gemini] Attached reference image (%d bytes, %s)", len(imgData), mimeType)
+				log.Printf("[Gemini] Attached reference image (%d bytes, %s)", len(imgData), contentType)
 			}
 		} else {
 			log.Printf("[Gemini] Could not download reference image, proceeding with text-only")
