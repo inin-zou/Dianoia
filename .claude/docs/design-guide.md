@@ -1,233 +1,239 @@
 # Design Guide
 
-## UI/UX System
+## UI/UX System — Dark Tactical Theme
+
+### Design Language
+
+Inspired by operational/forensic interfaces. Deep navy background with glass panels, JetBrains Mono system labels, grid overlays, and a haze/frosted atmospheric background. Feels like a military-grade analysis tool.
 
 ### Layout Structure
 
 ```
 +---------------------------------------------------------------+
-|  Top Bar: Case Title | Status | Module Tabs                   |
+|  Top Bar: DIANOIA™ | // CASE_TITLE | [ACTIVE] | Module Tabs   |
 +-------+-------------------------------------------------------+
 |       |                                                       |
-| Side  |                  Main Viewport                        |
-| Panel |                                                       |
-|       |  (3D Blueprint / Realistic 3D / 2D Floor Plan)        |
-| Evidence                                                      |
-| List  |                                                       |
+| Glass |                  Main Viewport                        |
+| Side  |                                                       |
+| Panel |  (3D Blueprint / Realistic 3D / Floor Plan 2D)        |
 |       |                                                       |
+| EVID  |  grid-bg-fine + viewport-gradient + crosshair cursor  |
+| LOG   |                                                       |
 +-------+-------------------------------------------------------+
-|  Timeline Scrubber + Playback Controls                        |
-+---------------------------------------------------------------+
-|  Hypothesis Ranking Bar (H1: 72% | H2: 18% | H3: 10%)       |
+|  Timeline Scrubber // 00:00 ——————————— 23:59 // [▶] [1.0x]  |
+|  // HYPOTHESIS_RANKING: #1 65% | #2 25% | #3 10%             |
 +---------------------------------------------------------------+
 ```
 
+### Pages
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| Landing | `/` | Hero page with Three.js wireframe animation, system menu, enter button |
+| App | `/app` | Main investigation interface with 4 module tabs |
+
 ### Module Tabs
 
-1. **Scene** -- 3D blueprint + realistic view, evidence placement
-2. **Analysis** -- reasoning results, hypothesis comparison, evidence relationships
-3. **Timeline** -- full timeline playback with track editor
-4. **Profiling** -- suspect composite generation (NanoBanana)
-5. **Report** -- case summary, exported findings (stretch goal)
+1. **Scene** — 3D blueprint + realistic view, evidence placement
+2. **Analysis** — reasoning results, hypothesis comparison, evidence graph
+3. **Timeline** — full timeline playback with track editor
+4. **Profiling** — suspect composite generation (NanoBanana)
 
 ### Color System
 
-**Evidence Types:**
-| Type | Color | Hex |
-|------|-------|-----|
-| Physical (weapon) | Red | `#EF4444` |
-| Body/victim | Dark Red | `#991B1B` |
-| Blood/biological | Crimson | `#DC2626` |
-| Forensic | Purple | `#8B5CF6` |
-| Document | Blue | `#3B82F6` |
-| Witness position | Amber | `#F59E0B` |
+**Core Palette (CSS custom properties):**
+| Token | Value | Use |
+|-------|-------|-----|
+| `--background` | `#0F172A` | Page background |
+| `--surface / --card` | `#162032` | Panel backgrounds |
+| `--surface-elevated` | `#1C2A40` | Modals, dropdowns |
+| `--foreground` | `#F8FAFC` | Primary text |
+| `--muted-foreground` | `#6B7F9E` | Secondary/label text |
+| `--border` | `#253249` | Borders |
+| `--primary` | `#3B82F6` | Accent blue |
+| `--danger` | `#EF4444` | Red — physical evidence, suspects |
+| `--success` | `#22C55E` | Green — high credibility |
+| `--warning` | `#F59E0B` | Amber — witnesses |
+| `--purple` | `#8B5CF6` | Purple — forensic evidence |
+
+**Evidence Type Colors:**
+| Type | Color | Badge Label |
+|------|-------|-------------|
+| Physical (weapon) | Red `#EF4444` | `PHYS` |
+| Forensic | Purple `#8B5CF6` | `FRNSC` |
+| Document | Blue `#3B82F6` | `DOC` |
+| Image | Amber `#F59E0B` | `IMG` |
 
 **Credibility Indicators:**
-| Score Range | Color | Label |
-|-------------|-------|-------|
-| 0.8 - 1.0 | Green `#22C55E` | High confidence |
-| 0.5 - 0.79 | Yellow `#EAB308` | Moderate |
-| 0.2 - 0.49 | Orange `#F97316` | Low confidence |
-| 0.0 - 0.19 | Red `#EF4444` | Unreliable / Contradicted |
+| Score | Color | Meaning |
+|-------|-------|---------|
+| 0.8-1.0 | Green `#22C55E` | High confidence |
+| 0.6-0.79 | Amber `#F59E0B` | Moderate |
+| 0.4-0.59 | Orange `#F97316` | Low confidence |
+| 0.0-0.39 | Red `#EF4444` | Unreliable |
 
-**Actor Colors (in timeline playback):**
+**Actor Colors (timeline):**
 | Actor | Color | Hex |
 |-------|-------|-----|
-| Suspect 1 | Red | `#EF4444` |
-| Suspect 2 | Orange | `#F97316` |
-| Victim | White/Gray | `#D1D5DB` |
-| Witness 1 | Blue | `#3B82F6` |
-| Witness 2 | Cyan | `#06B6D4` |
+| Suspect | Red | `#EF4444` |
+| Victim | Gray | `#64748B` |
+| Witness | Blue | `#3B82F6` |
 | Officer | Green | `#22C55E` |
+
+### Typography
+
+**Fonts:**
+- **JetBrains Mono** — headings, labels, system text, data readouts, badges
+- **Inter** — body text, descriptions, reasoning text
+
+**Hierarchy:**
+| Use | Font | Size | Weight | Style |
+|-----|------|------|--------|-------|
+| Brand "DIANOIA" | JetBrains Mono | 14px | 800 | uppercase, tracking-wider, glow-brand |
+| Panel headers | JetBrains Mono | 10px | 700 | uppercase, tracking-wider, `// PREFIX` |
+| Tab labels | JetBrains Mono | 11px | 500 | uppercase, tracking-wider |
+| Evidence titles | Inter | 12-13px | 500 | normal |
+| Body/reasoning | Inter | 12-13px | 400 | normal |
+| Data values | JetBrains Mono | 12px | 700 | tabular-nums |
+| Badge labels | JetBrains Mono | 8-9px | 700 | uppercase |
+| Status text | JetBrains Mono | 9px | 700 | uppercase, tracking-wider |
+
+### Glass Panel System
+
+All panels use a consistent glassmorphism style:
+
+```css
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-strong {  /* modals, dialogs */
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-subtle {  /* cards within panels */
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+```
+
+### Background Effects
+
+**Haze/Frosted atmosphere:** Layered radial gradients with `blur(40px)` filter creating foggy depth behind the grid.
+
+**Grid overlay:** Subtle white grid lines at 40px intervals (`grid-bg`) on the main app, 20px intervals (`grid-bg-fine`) on viewports.
+
+**Viewport gradient:** Radial gradient from subtle blue center to dark edge (`viewport-gradient`).
+
+### Interaction Patterns
+
+- **Hover states:** `bg-white/5` → `bg-white/10` transition 200ms
+- **Selected state:** `bg-white/10` with `border border-primary/30`
+- **Active tab:** `bg-white/15` with subtle blue glow shadow
+- **Status dots:** Green blinking dots (`animate-status-blink`) for live status
+- **Crosshair cursor:** On viewport areas
+- **System paths:** Display current context as `/case/viewport/blueprint_3d`
 
 ### 3D Blueprint Conventions
 
 **Coordinate System:**
 - 1 unit = 1 meter (real-world scale)
-- Y-axis = up
-- X-axis = east/west
-- Z-axis = north/south
-- Origin (0,0,0) = southwest corner of room at floor level
+- Y-axis = up, X = east/west, Z = north/south
+- Origin (0,0,0) = southwest corner at floor level
 
 **Geometry:**
-- Walls: `BoxGeometry` with 0.15m thickness, semi-transparent `#94A3B8` with wireframe overlay
-- Floor: `PlaneGeometry`, light gray `#F1F5F9`
-- Doors: gap in wall with thin frame outline
-- Windows: semi-transparent blue tint in wall
-- Furniture: simplified `BoxGeometry` in `#CBD5E1`
+- Walls: `BoxGeometry` 0.15m thick, semi-transparent white with wireframe
+- Floor: `PlaneGeometry`, dark with grid overlay
+- Doors: gap in wall with thin frame
+- Furniture: simplified `BoxGeometry` in muted colors
 
 **Human Figures:**
-- Capsule body (radius 0.25m, height 1.5m) + sphere head (radius 0.15m)
-- Colored by actor role (see Actor Colors above)
-- Slight glow/outline for selected actor
-- Movement shown as path line on floor (dashed, same color as actor)
+- Capsule body (radius 0.25m, height 1.5m) + sphere head (0.15m)
+- Colored by actor role
+- Movement paths as dashed floor lines
 
-**Evidence Markers:**
-- Pre-made assets at real-world scale
-- Floating label above each marker with evidence title
-- Click to expand: shows description, credibility badge, VLM annotation
-- Pulse animation for newly added evidence
-
-### 2D SVG Floor Plan
-
-- Top-down orthographic projection of blueprint data
-- Black walls, white interior
-- Evidence as colored dots with labels
-- Movement paths as colored lines with timestamps
-- Scale bar in corner
-- Legend for colors
-
-## Component Hierarchy
+## Component Hierarchy (Current)
 
 ```
 <App>
-  <TopBar />
-  <ModuleTabs>
-    <SceneModule>
-      <SidePanel>
-        <EvidenceList />
-        <AddEvidenceForm />
-      </SidePanel>
-      <ViewportSwitcher>
-        <BlueprintView3D>          -- R3F Canvas
-          <Room walls={} doors={} />
-          <EvidenceMarkers evidence={} />
-          <ActorFigures actors={} />
-          <MovementPaths paths={} />
-          <CameraControls />
-        </BlueprintView3D>
-        <RealisticView>            -- Marble iframe
-          <MarbleEmbed worldId={} />
-        </RealisticView>
-        <FloorPlanView2D>          -- SVG
-          <FloorPlanSVG blueprint={} />
-        </FloorPlanView2D>
-      </ViewportSwitcher>
-    </SceneModule>
-    <AnalysisModule>
-      <HypothesisList hypotheses={} />
-      <EvidenceGraph />
-      <CredibilityMatrix />
-    </AnalysisModule>
-    <TimelineModule>
-      <TimelinePlayback>
-        <BlueprintView3D />        -- reused
-        <TimelineScrubber />
-        <PlaybackControls />
-        <TrackEditor tracks={} />
-      </TimelinePlayback>
-      <HypothesisSelector />
-    </TimelineModule>
-    <ProfilingModule>
-      <SuspectProfileList />
-      <CompositeEditor>
-        <CurrentComposite imageUrl={} />
-        <RefinementChat />
-        <RevisionHistory />
-      </CompositeEditor>
-    </ProfilingModule>
-  </ModuleTabs>
-  <BottomBar>
-    <TimelineScrubber />
-    <HypothesisRankingBar />
-  </BottomBar>
+  <BrowserRouter>
+    <Routes>
+      <Route "/" → <Landing />            -- Three.js wireframe + system menu
+      <Route "/app" → <Index />           -- Main app shell
+        <TopNavbar />                     -- DIANOIA brand, case title, module tabs
+        <ModuleTabs>
+          <SceneModule>
+            <SidePanel glass>             -- // EVIDENCE_LOG
+              <EvidenceList />
+              <AddEvidenceDialog />
+            </SidePanel>
+            <ViewportArea>                -- grid-bg-fine, viewport-gradient
+              <ViewSwitcher />            -- tactical-segmented
+              <BlueprintView3D />         -- R3F Canvas (TODO)
+              <RealisticView />           -- Marble iframe (TODO)
+              <FloorPlanView2D />         -- SVG (TODO)
+            </ViewportArea>
+          </SceneModule>
+          <AnalysisModule>
+            <HypothesisList />            -- ranked, expandable glass cards
+            <EvidenceGraph />             -- placeholder, grid-bg-fine
+          </AnalysisModule>
+          <TimelineModule>
+            <ViewportArea />              -- reused 3D view
+            <TrackEditor>
+              <ActorList glass />         -- // ACTORS panel
+              <TimelineTracks />          -- alternating dark rows
+              <Playhead />               -- blue line with triangle
+            </TrackEditor>
+          </TimelineModule>
+          <ProfilingModule>
+            <ProfileList glass />         -- // SUSPECT_PROFILES
+            <CompositeEditor>
+              <ImageDisplay />            -- grid-bg-fine placeholder
+              <RefinementChat />          -- // REFINEMENT_LOG
+              <RevisionStrip />           -- vertical thumbnails
+            </CompositeEditor>
+          </ProfilingModule>
+        </ModuleTabs>
+        <BottomBar glass>
+          <TimelineScrubber />
+          <HypothesisRankingBar />       -- // HYPOTHESIS_RANKING
+        </BottomBar>
+      </Route>
+    </Routes>
+  </BrowserRouter>
 </App>
 ```
 
-## Lovable Prompt
+## Landing Page Design
 
-Use this prompt to scaffold the initial UI in Lovable:
+Full-viewport page with the variant's operational aesthetic:
+- Deep navy frame (`#051433`) with radial gradient viewport (white center → blue edge)
+- Grid overlay at `100vw / 24` intervals
+- Structural background typography "DN01" in 20% opacity white
+- Glass meta panel (top-left): DIANOIA™ branding + system info
+- SVG logo (top-right): DN01 letterforms
+- System modules menu (center-left): 6 items, hover descriptions, click to navigate
+- Three.js wireframe plane (center-right): animated wave distortion shader
+- Enter button (bottom-right): `ENTER_INVESTIGATION →` with blinking dot
+- Build info (bottom-left): version + hackathon credit
 
----
+## Post-Scaffold Customization Checklist
 
-**Lovable Prompt:**
-
-```
-Build a crime scene investigation platform called "Dianoia" with a dark professional theme (dark navy/slate background, clean typography).
-
-Pages/Layout:
-- Single-page app with a top navigation bar showing: app logo "Dianoia", case title (editable), case status badge, and module tabs: "Scene", "Analysis", "Timeline", "Profiling"
-- Persistent bottom bar with a timeline scrubber slider (time range 00:00 to 23:59) and playback controls (play, pause, rewind, speed selector)
-- Below the scrubber, a hypothesis ranking bar showing 3 hypothesis cards side by side with title, probability percentage, and a colored confidence bar
-
-Scene Module:
-- Left sidebar (280px) with:
-  - Evidence list: scrollable cards showing evidence title, type badge (physical/forensic/witness), credibility score as colored dot (green/yellow/orange/red), and a small thumbnail
-  - "Add Evidence" button that opens a modal with: title, type dropdown, description textarea, image upload, position coordinates (x, y, z)
-- Main area: a large viewport placeholder (will be replaced with 3D later) with a view switcher in the top-right corner: "Blueprint 3D", "Realistic 3D", "Floor Plan 2D"
-- The viewport placeholder should show a centered message "3D Blueprint View" with a subtle grid background
-
-Analysis Module:
-- Split view: left side shows ranked hypothesis cards (expandable) with title, probability bar, supporting evidence tags (green), contradicting evidence tags (red), and LLM reasoning text
-- Right side shows an evidence relationship diagram placeholder (will be a graph visualization)
-
-Timeline Module:
-- Top area: same viewport as Scene module (reuse the component)
-- Bottom area: track-based editor like a video editor
-  - Each track is a horizontal row labeled with an actor name and colored dot
-  - Tracks contain time slots (colored rectangles) that can be visualized on the timeline
-  - Track controls on the left: visibility toggle, lock toggle, color indicator
-
-Profiling Module:
-- Split layout
-- Left: list of suspect profiles (cards with thumbnail, name, description snippet)
-- Right: active profile editor with:
-  - Large image display area (square, 400px) showing current composite
-  - Below: chat-style interface for refinement instructions
-  - User types "add a beard" -> shows as a chat bubble -> new image appears
-  - Revision history sidebar showing thumbnail strip of previous iterations
-
-Design tokens:
-- Background: #0F172A (dark navy)
-- Surface: #1E293B (slate)
-- Border: #334155
-- Text primary: #F8FAFC
-- Text secondary: #94A3B8
-- Accent: #3B82F6 (blue)
-- Danger: #EF4444 (red)
-- Success: #22C55E (green)
-- Warning: #F59E0B (amber)
-- Font: Inter or system sans-serif
-- Border radius: 8px for cards, 6px for buttons
-- Use Tailwind CSS
-- Use shadcn/ui components where possible
-- Use Lucide icons
-
-Make all components responsive. Use TypeScript. Include placeholder data to demonstrate the UI (3 mock evidence items, 3 mock hypotheses, 2 mock timeline tracks, 1 mock suspect profile).
-```
-
----
-
-## Post-Lovable Customization Checklist
-
-After exporting from Lovable, these customizations are needed:
+The Lovable export has been restyled to the dark tactical theme. Remaining work:
 
 1. [ ] Replace viewport placeholder with R3F Canvas + BlueprintView3D
 2. [ ] Add Marble iframe embed in realistic view tab
-3. [ ] Wire Supabase client for real-time data
-4. [ ] Replace mock data with Supabase queries
-5. [ ] Add R3F 3D components (Room, EvidenceMarkers, ActorFigures, MovementPaths)
-6. [ ] Implement SVG floor plan generator for 2D view
-7. [ ] Wire NanoBanana API to profiling chat interface
-8. [ ] Add timeline animation system (AnimationMixer)
-9. [ ] Connect hypothesis selector to timeline playback
+3. [ ] Wire Supabase client for real-time data (replace mock data)
+4. [ ] Create `lib/api.ts` for Go backend HTTP calls
+5. [ ] Create `lib/supabase.ts` for direct Supabase queries + real-time
+6. [ ] Add R3F 3D components (Room, EvidenceMarkers, ActorFigures, MovementPaths)
+7. [ ] Implement SVG floor plan generator for 2D view
+8. [ ] Wire NanoBanana API to profiling chat interface (via Go backend)
+9. [ ] Add timeline animation system (interpolate positions from hypothesis data)
+10. [ ] Connect hypothesis selector to timeline playback

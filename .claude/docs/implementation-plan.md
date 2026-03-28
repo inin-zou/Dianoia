@@ -1,70 +1,155 @@
 # Implementation Plan
 
-## Pre-Hackathon Preparation
+## Pre-Hackathon Status
 
-These tasks MUST be done before the event to maximize the 6.5 hours of build time.
+| Task | Status | Notes |
+|------|--------|-------|
+| Lovable scaffold | DONE | Exported, restyled to dark tactical theme |
+| Landing page | DONE | Three.js wireframe animation, system menu, routes to /app |
+| Design system | DONE | Glass panels, JetBrains Mono, haze background, grid overlays |
+| API keys | DONE | Supabase, Gemini, Marble — stored in `.env` |
+| Frontend deps | DONE | React 18, R3F v8, Three.js r183, shadcn/ui, Tailwind |
+| Supabase schema | TODO | Run CREATE TABLE from data-model.md |
+| Go backend init | TODO | Module init, directory structure, Supabase client |
+| Gemini prompt drafts | TODO | VLM annotation, reasoning, blueprint generation |
+| Marble API test | TODO | Verify scan pipeline works |
+| NanoBanana test | TODO | Verify image generation works |
+| 3D assets | TODO | GLB files for evidence markers |
 
-### 1. Lovable Scaffold
-- Run the Lovable prompt from design-guide.md
-- Export the React/TS project
-- Verify it builds and runs locally
-- Push to GitHub repo
+## Frontend-Backend Wiring Plan
 
-### 2. Supabase Setup
-- Create Supabase project
-- Run all CREATE TABLE statements from data-model.md
-- Create storage buckets: evidence-images, marble-exports, rendered-views, suspect-composites
-- Enable real-time for all tables
-- Get connection string and anon key
-- Test basic CRUD from a script
+### Step 1: Create shared client libraries (FIRST)
 
-### 3. Go Backend Init
+```
+frontend/src/lib/supabase.ts   -- Supabase client (reads + real-time)
+frontend/src/lib/api.ts        -- Go backend HTTP client (commands)
+frontend/src/types/index.ts    -- TypeScript types from interfaces.md
+```
+
+### Step 2: Replace mock data with Supabase queries
+
+Each module currently uses `mockData.ts`. Replace with:
+
+| Module | Data Source | Real-time? |
+|--------|------------|------------|
+| SceneModule evidence list | `supabase.from('evidence').select()` | Yes — subscribe to INSERTs/UPDATEs |
+| AnalysisModule hypotheses | `supabase.from('hypotheses').select()` | Yes — new hypotheses after analysis |
+| TimelineModule actors | Derived from hypotheses timeline JSON | Yes — updates when hypotheses change |
+| ProfilingModule profiles | `supabase.from('suspect_profiles').select()` | Yes — image URL updates |
+| BottomBar hypotheses | Same as AnalysisModule | Yes |
+
+### Step 3: Wire command actions to Go backend
+
+| User Action | Frontend Call | Go Endpoint |
+|-------------|-------------|-------------|
+| Add evidence | `apiPost('/api/cases/:id/evidence', {...})` | POST creates row + triggers VLM |
+| Trigger analysis | `apiPost('/api/cases/:id/analyze', {upToStage})` | POST runs Gemini reasoning |
+| Upload scan | `apiPost('/api/cases/:id/scan', formData)` | POST triggers Marble pipeline |
+| Create profile | `apiPost('/api/cases/:id/profiles', {description})` | POST generates composite |
+| Refine profile | `apiPost('/api/profiles/:id/refine', {instruction})` | POST generates new image |
+
+### Step 4: Real-time subscriptions
+
+```typescript
+// In each module component or a shared hook:
+useEffect(() => {
+  const channel = supabase
+    .channel('evidence-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'evidence',
+      filter: `case_id=eq.${caseId}`,
+    }, (payload) => {
+      // Update local state with new/changed evidence
+    })
+    .subscribe();
+
+  return () => { supabase.removeChannel(channel); };
+}, [caseId]);
+```
+
+## Supabase Setup
+
+### Tables (run from data-model.md)
+```sql
+-- Run all 6 CREATE TABLE statements
+-- cases, evidence, witnesses, hypotheses, suspect_profiles, marble_scans
+```
+
+### Storage Buckets
+```
+evidence-images/
+marble-exports/
+rendered-views/
+suspect-composites/
+```
+
+### Enable Real-time
+Enable real-time for: `evidence`, `hypotheses`, `suspect_profiles`, `marble_scans`
+
+## Go Backend Init
+
 ```bash
 mkdir backend && cd backend
 go mod init dianoia
-# Install dependencies:
-# - chi or gin (HTTP router)
-# - supabase-go or postgrest-go (Supabase client)
-# - google/generative-ai-go (Gemini SDK)
+# Dependencies:
+#   github.com/go-chi/chi/v5           -- HTTP router
+#   github.com/go-chi/cors             -- CORS middleware
+#   github.com/google/generative-ai-go -- Gemini SDK
+#   github.com/supabase-community/supabase-go -- Supabase client
+#   github.com/joho/godotenv           -- env loading
 ```
-- Set up directory structure from agentic-engineering.md
-- Create basic health check endpoint
-- Verify Supabase connection works
-- Verify Gemini API key works
 
-### 4. API Keys & Access
-- [ ] Marble API key (World Labs)
-- [ ] Gemini API key (Google AI Studio)
-- [ ] Supabase project URL + anon key + service role key
-- [ ] Store all in `.env` files (backend + frontend)
+### Directory Structure
+```
+backend/
+  cmd/server/main.go         -- entry point, router setup, CORS
+  internal/
+    api/
+      cases.go               -- case CRUD handlers
+      evidence.go             -- evidence handlers
+      witnesses.go            -- witness handlers
+      analysis.go             -- analyze endpoint
+      scan.go                 -- marble scan handlers
+      profiles.go             -- suspect profile handlers
+    service/
+      evidence.go             -- evidence business logic + VLM trigger
+      reasoning.go            -- hypothesis generation pipeline
+      profiling.go            -- NanoBanana orchestration
+      blueprint.go            -- VLM → room desc → blueprint JSON
+    gemini/
+      client.go               -- Gemini API wrapper
+      vlm.go                  -- vision analysis methods
+      reasoning.go            -- hypothesis generation methods
+      image.go                -- NanoBanana/image generation
+    marble/
+      client.go               -- Marble API wrapper
+    supabase/
+      client.go               -- Supabase client wrapper
+    types/
+      types.go                -- Go types mirroring interfaces.md
+  prompts/
+    vlm_scene.tmpl            -- room description prompt
+    vlm_evidence.tmpl         -- evidence annotation prompt
+    reasoning.tmpl            -- hypothesis generation prompt
+    blueprint.tmpl            -- blueprint JSON generation prompt
+```
 
-### 5. Pre-made 3D Assets
-Create or download simple GLB/GLTF files:
-- Human capsule figure (1.75m, parameterized color)
-- Knife (0.3m)
-- Body outline (1.8m x 0.5m, flat on ground)
-- Blood marker (0.1m, red disc)
-- Generic evidence marker (0.15m, yellow cone)
-- Fingerprint marker (0.1m, purple disc)
+## Gemini Prompt Templates
 
-Store in `frontend/public/assets/3d/`
-
-### 6. Gemini Prompt Drafts
-Draft and test these prompts:
-
-**VLM Scene Analysis:**
+### VLM Scene Analysis
 ```
 Analyze this image of a room. Describe:
 - Room dimensions (estimated in meters)
 - Wall positions and orientations
 - Door and window locations
 - Major furniture items and their positions
-- Any notable features
 
 Output as structured JSON matching the BlueprintData schema.
 ```
 
-**VLM Evidence Annotation:**
+### VLM Evidence Annotation
 ```
 Analyze this image of evidence found at a crime scene.
 Describe: what the object is, its condition, forensic significance,
@@ -72,30 +157,25 @@ and any observations about its positioning.
 Output as JSON: {description, significance, relatedEvidence[], confidence}
 ```
 
-**Reasoning Engine:**
+### Reasoning Engine
 ```
 You are a forensic analyst. Given the following evidence and witness statements
 for a crime scene, generate ranked hypotheses for how the crime unfolded.
 
-Room layout: {blueprint}
-Evidence: {evidence_list_with_credibility}
-Witness statements: {witness_list_with_credibility}
+Room layout: {{.Blueprint}}
+Evidence: {{.EvidenceJSON}}
+Witness statements: {{.WitnessJSON}}
 
 For each hypothesis, provide:
-1. A title (one sentence)
-2. Probability (0-1, all hypotheses must sum to 1)
+1. Title (one sentence)
+2. Probability (0-1, all must sum to 1)
 3. Detailed reasoning
 4. Supporting evidence IDs
 5. Contradicting evidence IDs
-6. A timeline of events as JSON array with: timestamp, actor, action, position {x,y,z}, description, evidence_refs[], confidence
-
-Credibility rules:
-- Physical evidence is the strongest basis for reasoning
-- Multiple corroborating witnesses increase testimony credibility
-- Contradictions between witnesses and physical evidence should favor physical evidence
-- Consider witness position/angle when evaluating observation reliability
+6. Timeline events as JSON array
 
 Generate 2-4 hypotheses, ranked by probability.
+Output as JSON array of Hypothesis objects.
 ```
 
 ---
@@ -104,203 +184,85 @@ Generate 2-4 hypotheses, ranked by probability.
 
 ### Hour 0-1.5: Foundation (11:00 - 12:30)
 
-**Task F1: Frontend - Supabase Integration**
-```
-- Install @supabase/supabase-js
-- Create lib/supabase.ts client
-- Create useRealtimeTable hook
-- Wire evidence list to real Supabase data
-- Wire case loading
-- Test: evidence shows up in sidebar when added to DB manually
-```
+**F1: Supabase Integration**
+- Install `@supabase/supabase-js`, create `lib/supabase.ts`
+- Create `lib/api.ts` for Go backend calls
+- Create `useRealtimeTable` hook
+- Wire evidence list to Supabase (replace mockData imports)
 
-**Task F2: Frontend - R3F Blueprint Viewer**
-```
-- Install @react-three/fiber, @react-three/drei
-- Create BlueprintView3D component
-- Create Room component (renders walls, floor, doors from BlueprintData)
-- Add OrbitControls for camera
-- Test with hardcoded room data
-- Test: 3D room renders with walls and floor
-```
+**F2: R3F Blueprint Viewer**
+- Create `BlueprintView3D` component in R3F Canvas
+- Create `Room` component (renders walls/floor from BlueprintData)
+- Add OrbitControls, test with hardcoded room
 
-**Task B1: Backend - REST API Skeleton**
-```
-- Set up HTTP router (chi or gin)
+**B1: Go REST API Skeleton**
+- Set up chi router + CORS middleware
 - Implement all CRUD endpoints from interfaces.md
-- Wire to Supabase
-- Test: POST evidence -> appears in Supabase
-- Test: GET evidence -> returns list
-```
+- Wire to Supabase via service_role key
 
-**Task B2: Backend - Gemini VLM Integration**
-```
-- Set up Gemini client
-- Implement AnalyzeImage method
-- Create evidence annotation prompt template
-- Wire to POST evidence endpoint (auto-annotate if image provided)
-- Test: upload evidence image -> VLM annotation returned
-```
+**B2: Gemini VLM Integration**
+- Set up Gemini client with prompt templates
+- Implement evidence auto-annotation on POST
+- Test: upload image → VLM annotation returned
 
-**Task P1: Pipeline - Marble Scan**
-```
-- Implement Marble API client (create world, poll status, export)
-- Test with pre-captured venue photos
-- Store world ID and export URLs in Supabase
-- Render multiple views for VLM consumption
-- Test: photos in -> Marble world created -> mesh exported
-```
+**P1: Marble Scan Pipeline**
+- Implement Marble API client
+- Test scan with sample images
+- Store results in Supabase
 
 ### Hour 1.5-4: Core Features (12:30 - 15:00)
 
-**Task F3: Frontend - Evidence Placement**
-```
-- Create EvidenceMarker component (3D asset at position)
-- Load pre-made GLB assets based on assetType
-- Create AddEvidenceForm with position picker (click on floor plane)
-- Wire form submission to Go API
-- Show VLM annotations on marker hover/click
-- Test: click floor -> place evidence -> appears in 3D and sidebar
-```
+**F3: Evidence Placement in 3D**
+- EvidenceMarker component, GLB asset loading
+- Click floor to set position, wire to Go backend POST
+- Show VLM annotations on hover
 
-**Task F4: Frontend - Timeline Playback**
-```
-- Create ActorFigure component (capsule + sphere, colored by role)
-- Create MovementPath component (dashed line on floor)
-- Create TimelineScrubber component (range slider)
-- Create PlaybackControls (play/pause/speed)
-- Implement animation: interpolate actor positions based on timeline events and scrubber time
-- Create HypothesisSelector to switch between hypothesis timelines
-- Test: select hypothesis -> actors move through positions as scrubber advances
-```
+**F4: Timeline Playback**
+- ActorFigure + MovementPath components
+- Animation: interpolate positions from hypothesis timeline
+- HypothesisSelector to switch timelines
 
-**Task B3: Backend - Reasoning Pipeline**
-```
-- Implement GenerateHypotheses method on Gemini client
-- Build prompt from evidence list + witnesses + blueprint
-- Parse structured JSON response into Hypothesis objects
-- Write hypotheses to Supabase
-- Create POST /api/cases/:id/analyze endpoint
-- Test: trigger analysis -> hypotheses appear in DB with timelines
-```
+**B3: Reasoning Pipeline**
+- GenerateHypotheses from evidence + witnesses + blueprint
+- Parse Gemini JSON → Hypothesis objects → write to Supabase
 
-**Task B4: Backend - Blueprint Generation**
-```
-- Implement room description extraction (send rendered views to Gemini VLM)
-- Implement blueprint generation (send description to Gemini LLM -> BlueprintData JSON)
-- Wire to POST /api/cases/:id/blueprint endpoint
-- Store blueprint in cases.blueprint_data
-- Test: rendered views in -> BlueprintData JSON out -> frontend renders room
-```
-
-**Task P2: Pipeline - Venue Integration**
-```
-- Complete venue scan with Marble
-- Generate and store rendered views
-- Trigger blueprint generation
-- Verify Marble iframe embed works in frontend
-- Set up ViewportSwitcher to toggle between Blueprint 3D / Realistic 3D
-- Test: both views working, blueprint matches venue layout
-```
+**B4: Blueprint Generation**
+- Rendered views → Gemini VLM → room description
+- Room description → Gemini LLM → BlueprintData JSON
 
 ### Hour 4-5.5: Polish & Module 2 (15:00 - 16:30)
 
-**Task F5: Frontend - Suspect Profiling**
-```
-- Wire profiling module to Go API
-- Implement CompositeEditor: display current image, chat input for refinements
-- Implement RevisionHistory: thumbnail strip of iterations
-- Wire refinement submissions to POST /api/profiles/:id/refine
-- Test: enter description -> composite appears -> refine -> new image with consistency
-```
-
-**Task F6: Frontend - Analysis Polish**
-```
-- Hypothesis comparison view with probability bars
-- Credibility badges on evidence (color-coded)
-- 2D SVG floor plan (if time permits)
-- Supporting/contradicting evidence highlighted per hypothesis
-- Test: switch hypotheses -> relevant evidence highlights change
-```
-
-**Task B5: Backend - NanoBanana Integration**
-```
-- Implement Gemini Image API client for NanoBanana
-- Create profile from text description -> initial composite
-- Refine profile (previous image + instruction -> new image)
-- Store images in Supabase Storage
-- Wire to profile API endpoints
-- Test: description in -> composite out -> refinement maintains consistency
-```
-
-**Task B6: Backend - Progressive Evidence**
-```
-- Implement stage-based evidence retrieval (filter by stageOrder <= current stage)
-- Auto-update credibility when contradictions detected
-- Re-trigger reasoning when new evidence stage is added
-- Test: add stage 2 evidence -> credibility shifts -> new hypotheses generated
-```
-
-**Task P3: Pipeline - Demo Data**
-```
-- Create murder case scenario in Supabase
-- Stage 1: body + knife (physical evidence)
-- Stage 2: witness 1 statement
-- Stage 3: forensic report (contradicts witness)
-- Stage 4: witness 2 (corroborates witness 1)
-- Pre-generate hypotheses for each stage for backup
-- Test: walk through all stages, verify reasoning makes sense
-```
+**F5: Suspect Profiling** — Wire chat to Go backend refine endpoint
+**F6: Analysis Polish** — Credibility badges, hypothesis comparison
+**B5: NanoBanana Integration** — Profile generation + refinement
+**B6: Progressive Evidence** — Stage-based retrieval, auto re-analysis
 
 ### Hour 5.5-6.5: Demo Prep (16:30 - 17:30)
 
-**Task D1: Demo Flow**
-```
-- Load demo case
-- Walk through all 4 evidence stages
-- Verify timeline playback works for each hypothesis set
-- Verify suspect profiling flow
-- Time the demo (target: 3 minutes)
-```
-
-**Task D2: Backup**
-```
-- Screen record a successful demo run
-- Take screenshots of key moments
-- Prepare slides if needed
-- Write submission description
-```
-
-**Task D3: Submit**
-```
-- Final git push
-- Submit project by 17:30
-- Deploy if required (Vercel for frontend, Railway/Fly.io for Go backend)
-```
+Load demo data, rehearse 3-min demo, record backup video, submit.
 
 ## Dependency Graph
 
 ```
 Supabase Schema (pre-hackathon)
      |
-     +---> F1 (Supabase integration) ---> F3 (Evidence placement) ---> F4 (Timeline)
-     |                                                                      |
-     +---> F2 (R3F setup) ---------> F3                                     +---> F6 (Polish)
-     |                                                                      |
-     +---> B1 (API skeleton) ---> B2 (VLM) ---> B3 (Reasoning) ---> B6 (Progressive)
-     |                                              |
-     +---> B4 (Blueprint gen) --------+             +---> F4 (Timeline needs hypotheses)
-     |                                |
-     +---> P1 (Marble scan) ---> P2 (Venue) ---> P3 (Demo data)
+     +→ F1 (Supabase + API client) → F3 (Evidence 3D) → F4 (Timeline)
+     |                                                         |
+     +→ F2 (R3F setup) → F3                                   +→ F6 (Polish)
      |
-     +---> B5 (NanoBanana) ---> F5 (Profiling UI)
+     +→ B1 (API skeleton) → B2 (VLM) → B3 (Reasoning) → B6 (Progressive)
+     |                                       |
+     +→ B4 (Blueprint gen)                   +→ F4 (needs hypotheses)
+     |
+     +→ P1 (Marble scan) → P2 (Venue) → P3 (Demo data)
+     |
+     +→ B5 (NanoBanana) → F5 (Profiling UI)
 ```
 
 ## Critical Path
 
-The demo depends on this chain completing:
 ```
-Supabase -> B1 -> B3 (Reasoning) -> F4 (Timeline playback)
+Supabase → B1 (API) → B3 (Reasoning) → F4 (Timeline playback)
 ```
 
-If this chain works, you have a demo. Everything else enhances it.
+If this chain works, we have a demo. Everything else enhances it.

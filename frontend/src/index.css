@@ -1,0 +1,299 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Deep navy operational theme */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 217 33% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 55%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 28% 20%;
+    --input: 215 28% 17%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.5rem;
+
+    --surface: 217 33% 10%;
+    --surface-elevated: 217 33% 14%;
+    --text-primary: 210 40% 98%;
+    --text-secondary: 215 20% 55%;
+    --text-tertiary: 215 16% 40%;
+
+    --danger: 0 72% 51%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --purple: 258 90% 66%;
+
+    --glass-bg: 0 0% 100%;
+    --glass-border: 0 0% 100%;
+
+    --sidebar-background: 217 33% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 215 28% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 28% 20%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+  }
+
+  ::selection {
+    background: hsl(217 91% 60%);
+    color: hsl(222 47% 6%);
+  }
+}
+
+@layer utilities {
+  /* System label — tactical uppercase mono */
+  .text-label {
+    @apply text-[10px] font-mono font-bold uppercase tracking-[0.08em];
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Glass panels — variant style */
+  .glass {
+    background: hsl(var(--glass-bg) / 0.08);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid hsl(var(--glass-border) / 0.15);
+  }
+
+  .glass-strong {
+    background: hsl(var(--glass-bg) / 0.12);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid hsl(var(--glass-border) / 0.2);
+  }
+
+  .glass-subtle {
+    background: hsl(var(--glass-bg) / 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(var(--glass-border) / 0.1);
+  }
+
+  /* Surface utilities */
+  .surface {
+    background-color: hsl(var(--surface));
+  }
+
+  .surface-elevated {
+    background-color: hsl(var(--surface-elevated));
+  }
+
+  .text-primary-custom {
+    color: hsl(var(--text-primary));
+  }
+
+  .text-secondary-custom {
+    color: hsl(var(--text-secondary));
+  }
+
+  .text-tertiary-custom {
+    color: hsl(var(--text-tertiary));
+  }
+
+  /* Card shadow for dark theme */
+  .card-shadow {
+    box-shadow:
+      0 0 0 1px hsl(var(--glass-border) / 0.1),
+      0 4px 24px rgba(0, 0, 0, 0.3),
+      0 1px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
+  }
+
+  /* Interactive transition */
+  .interactive {
+    @apply transition-all duration-200 ease-out cursor-pointer;
+  }
+
+  /* Grid background — variant style */
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, hsl(var(--glass-border) / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--glass-border) / 0.07) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Fine grid for viewports */
+  .grid-bg-fine {
+    background-image:
+      linear-gradient(to right, hsl(var(--glass-border) / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--glass-border) / 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Dot grid */
+  .dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--glass-border) / 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Radial gradient viewport — from variant */
+  .viewport-gradient {
+    background: radial-gradient(circle at center, hsl(217 91% 60% / 0.08) 0%, hsl(222 47% 6%) 70%);
+  }
+
+  /* Frosted viewport — grid + glass + haze for 3D placeholder areas */
+  .viewport-frosted {
+    position: relative;
+    background:
+      radial-gradient(circle at center, hsl(217 91% 60% / 0.06) 0%, transparent 60%),
+      hsl(222 47% 6%);
+    backdrop-filter: blur(1px);
+  }
+
+  .viewport-frosted::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(to right, hsl(var(--glass-border) / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--glass-border) / 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .viewport-frosted::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 50% 40% at 50% 50%, hsl(217 60% 60% / 0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 80% 60% at 30% 70%, hsl(220 40% 50% / 0.03) 0%, transparent 60%);
+    filter: blur(30px);
+  }
+
+  /* System glow on brand */
+  .glow-brand {
+    text-shadow: 0 0 12px hsl(217 91% 60% / 0.4);
+  }
+
+  /* Status dot blink */
+  .status-dot {
+    @apply inline-block w-1.5 h-1.5 rounded-full bg-success animate-status-blink;
+  }
+
+  /* Segmented control — dark tactical style */
+  .tactical-segmented {
+    @apply flex items-center p-0.5 rounded-lg;
+    background: hsl(var(--glass-bg) / 0.06);
+    border: 1px solid hsl(var(--glass-border) / 0.1);
+  }
+
+  .tactical-segmented-item {
+    @apply px-3 py-1.5 rounded-md text-[11px] font-mono font-medium uppercase tracking-wider interactive focus-ring;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .tactical-segmented-item-active {
+    @apply tactical-segmented-item;
+    background: hsl(var(--glass-bg) / 0.15);
+    color: hsl(var(--foreground));
+    box-shadow: 0 0 8px hsl(217 91% 60% / 0.15);
+  }
+
+  /* Panel header — system style */
+  .panel-header {
+    @apply flex items-center justify-between px-3 py-2 font-mono text-[10px] uppercase tracking-wider;
+    background: hsl(var(--glass-bg) / 0.06);
+    border-bottom: 1px solid hsl(var(--glass-border) / 0.12);
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Hover row */
+  .hover-row {
+    @apply transition-colors duration-150;
+  }
+  .hover-row:hover {
+    background: hsl(var(--glass-bg) / 0.1);
+  }
+
+  /* Haze / frosted background — layered fog effect */
+  .haze-bg {
+    position: relative;
+    background: hsl(var(--background));
+  }
+
+  .haze-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      /* Central soft glow */
+      radial-gradient(ellipse 80% 60% at 50% 40%, hsl(217 91% 60% / 0.07) 0%, transparent 70%),
+      /* Top-left fog patch */
+      radial-gradient(ellipse 60% 50% at 10% 20%, hsl(215 50% 70% / 0.06) 0%, transparent 60%),
+      /* Bottom-right fog patch */
+      radial-gradient(ellipse 70% 60% at 85% 80%, hsl(258 60% 50% / 0.04) 0%, transparent 55%),
+      /* Ambient haze across */
+      radial-gradient(ellipse 120% 80% at 50% 50%, hsl(220 40% 50% / 0.03) 0%, transparent 80%);
+    filter: blur(40px);
+  }
+
+  .haze-bg > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Iridescent background — dark version (with haze) */
+  .iridescent-bg {
+    background:
+      radial-gradient(ellipse 100% 80% at 5% 15%, hsl(217 91% 60% / 0.06) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 70% at 95% 10%, hsl(258 90% 66% / 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse 90% 60% at 50% 95%, hsl(217 91% 60% / 0.05) 0%, transparent 55%),
+      hsl(var(--background));
+  }
+}
