@@ -25,12 +25,31 @@ Three decoupled modules communicating via Supabase:
 
 Frontend does NOT call Gemini directly. Go backend writes results to Supabase, frontend reacts via real-time subscriptions.
 
-## Key Design Docs (read these before coding)
+## Design Docs Usage Guide
 
-- `interfaces.md` -- shared TypeScript/Go types, REST API endpoints. Source of truth for all types.
-- `architecture.md` -- module boundaries, data flow diagrams
-- `agentic-engineering.md` -- how to use agent teams, quality gates (test + review after every feature)
-- `design-guide.md` -- UI layout, color system, 3D conventions, Lovable prompt, component hierarchy
+All docs live in `.claude/docs/`. Read `overview.md` for the full index. Here's when to use each:
+
+| Doc | When to Read |
+|-----|-------------|
+| `product-design.md` | Starting the project, understanding features, writing demo script, checking user flows |
+| `architecture.md` | Before building any module -- understand boundaries, data flows, what each module owns vs doesn't |
+| `data-model.md` | Setting up Supabase, writing queries, adding new tables, understanding real-time subscriptions and credibility model |
+| `interfaces.md` | **Before writing ANY code** -- source of truth for all shared types (TS + Go), REST API endpoints, reusable abstractions. Add new types here first, then implement. |
+| `design-guide.md` | Building UI components, choosing colors, rendering 3D assets, setting up R3F scene. Contains the **Lovable prompt** and full component hierarchy. |
+| `agentic-engineering.md` | Running agent teams for implementation. Defines the Implement -> Test -> Review cycle, parallel agent strategy, and quality gates. |
+| `implementation-plan.md` | Picking what to work on next. Has the hourly task breakdown, dependency graph, and critical path. |
+| `roadmap.md` | Checking hackathon schedule, what's MVP vs nice-to-have, the 3-min demo script. |
+
+**Quick reference by task:**
+- "What API endpoint should I use?" -> `interfaces.md`
+- "What type should this field be?" -> `interfaces.md`
+- "Can frontend call Gemini directly?" -> `architecture.md` (no -- Go backend only)
+- "What color for witness markers?" -> `design-guide.md`
+- "What Supabase table stores hypotheses?" -> `data-model.md`
+- "What should I build next?" -> `implementation-plan.md`
+- "Is this feature MVP or stretch?" -> `roadmap.md`
+- "How do I run agents in parallel?" -> `agentic-engineering.md`
+- "What's the demo storyline?" -> `product-design.md` + `roadmap.md` (demo script)
 
 ## Development Rules
 
