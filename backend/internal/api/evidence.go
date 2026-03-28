@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
+	"dianoia/internal/gemini"
 	"dianoia/internal/supabase"
 	"dianoia/internal/types"
 
@@ -14,12 +17,13 @@ import (
 
 // EvidenceHandler handles all evidence-related endpoints.
 type EvidenceHandler struct {
-	db *supabase.Client
+	db     *supabase.Client
+	gemini *gemini.Client
 }
 
 // NewEvidenceHandler creates a new EvidenceHandler.
-func NewEvidenceHandler(db *supabase.Client) *EvidenceHandler {
-	return &EvidenceHandler{db: db}
+func NewEvidenceHandler(db *supabase.Client, geminiClient *gemini.Client) *EvidenceHandler {
+	return &EvidenceHandler{db: db, gemini: geminiClient}
 }
 
 // CaseRoutes returns the chi router for /api/cases/{id}/evidence endpoints.
@@ -57,8 +61,9 @@ func (h *EvidenceHandler) CreateEvidence(w http.ResponseWriter, r *http.Request)
 	credScore, credReason := defaultCredibility(req.Type)
 
 	now := time.Now().UTC()
+	evidenceID := uuid.New().String()
 	evidence := map[string]interface{}{
-		"id":                 uuid.New().String(),
+		"id":                 evidenceID,
 		"case_id":            caseID,
 		"type":               req.Type,
 		"subtype":            req.Subtype,
@@ -82,9 +87,52 @@ func (h *EvidenceHandler) CreateEvidence(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// TODO: If imageURL is provided, trigger async VLM annotation via Gemini
+	// Trigger async VLM annotation if there is a description and Gemini is configured
+	if h.gemini != nil && req.Description != "" {
+		go h.annotateEvidence(evidenceID, req.Description, req.ImageURL)
+	}
 
 	writeJSON(w, http.StatusCreated, result)
+}
+
+// annotateEvidence runs VLM annotation in a background goroutine and updates the evidence row.
+func (h *EvidenceHandler) annotateEvidence(evidenceID string, description string, imageURL *string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	prompt := description
+	imgURL := ""
+	if imageURL != nil {
+		imgURL = *imageURL
+	}
+
+	log.Printf("[Evidence] Starting async VLM annotation for evidence %s", evidenceID)
+
+	annotation, err := h.gemini.AnalyzeImage(ctx, imgURL, prompt)
+	if err != nil {
+		log.Printf("[Evidence] VLM annotation failed for evidence %s: %v", evidenceID, err)
+		return
+	}
+
+	// Marshal annotation to JSON for Supabase
+	annotationJSON, err := json.Marshal(annotation)
+	if err != nil {
+		log.Printf("[Evidence] Failed to marshal VLM annotation for evidence %s: %v", evidenceID, err)
+		return
+	}
+
+	// Update the evidence row with the annotation
+	_, err = h.db.Update(ctx, "evidence", map[string]string{
+		"id": "eq." + evidenceID,
+	}, map[string]interface{}{
+		"vlm_annotation": json.RawMessage(annotationJSON),
+	})
+	if err != nil {
+		log.Printf("[Evidence] Failed to update evidence %s with VLM annotation: %v", evidenceID, err)
+		return
+	}
+
+	log.Printf("[Evidence] VLM annotation stored for evidence %s (confidence=%.2f)", evidenceID, annotation.Confidence)
 }
 
 // ListEvidence handles GET /api/cases/{id}/evidence.

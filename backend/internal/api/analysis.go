@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"dianoia/internal/gemini"
+	"dianoia/internal/service"
 	"dianoia/internal/supabase"
 	"dianoia/internal/types"
 
@@ -13,13 +15,22 @@ import (
 
 // AnalysisHandler handles reasoning/analysis endpoints.
 type AnalysisHandler struct {
-	db     *supabase.Client
-	gemini *gemini.Client
+	db               *supabase.Client
+	gemini           *gemini.Client
+	reasoningService *service.ReasoningService
 }
 
 // NewAnalysisHandler creates a new AnalysisHandler.
-func NewAnalysisHandler(db *supabase.Client, gemini *gemini.Client) *AnalysisHandler {
-	return &AnalysisHandler{db: db, gemini: gemini}
+func NewAnalysisHandler(db *supabase.Client, geminiClient *gemini.Client) *AnalysisHandler {
+	var rs *service.ReasoningService
+	if geminiClient != nil {
+		rs = service.NewReasoningService(db, geminiClient)
+	}
+	return &AnalysisHandler{
+		db:               db,
+		gemini:           geminiClient,
+		reasoningService: rs,
+	}
 }
 
 // CaseRoutes returns the chi router for /api/cases/{id}/analyze and /api/cases/{id}/hypotheses.
@@ -42,22 +53,38 @@ func (h *AnalysisHandler) ItemRoutes() chi.Router {
 func (h *AnalysisHandler) Analyze(w http.ResponseWriter, r *http.Request) {
 	caseID := chi.URLParam(r, "id")
 
-	var req types.AnalyzeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+	if h.reasoningService == nil {
+		writeError(w, http.StatusServiceUnavailable, "Gemini client not configured -- analysis pipeline unavailable")
 		return
 	}
 
-	// TODO: Implement full reasoning pipeline:
-	// 1. Fetch all evidence and witnesses for this case from Supabase
-	// 2. Fetch the blueprint data for this case
-	// 3. Call Gemini reasoning to generate hypotheses
-	// 4. Write hypotheses to Supabase
-	// 5. Return the ranked hypotheses
+	// Parse request body; default upToStage to 999 (all stages)
+	var req types.AnalyzeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// If body is empty or malformed, use defaults
+		req.UpToStage = 999
+	}
+	if req.UpToStage <= 0 {
+		req.UpToStage = 999
+	}
 
-	_ = caseID // Will be used when pipeline is implemented
+	log.Printf("[Analysis] Triggering reasoning pipeline for case %s (upToStage=%d)", caseID, req.UpToStage)
 
-	writeError(w, http.StatusNotImplemented, "analysis pipeline not yet implemented - Gemini integration pending")
+	// Run the reasoning pipeline
+	hypotheses, err := h.reasoningService.GenerateHypotheses(r.Context(), caseID, req.UpToStage)
+	if err != nil {
+		log.Printf("[Analysis] Reasoning pipeline failed for case %s: %v", caseID, err)
+		writeError(w, http.StatusInternalServerError, "reasoning pipeline failed: "+err.Error())
+		return
+	}
+
+	log.Printf("[Analysis] Successfully generated %d hypotheses for case %s", len(hypotheses), caseID)
+
+	// Return the hypotheses
+	response := types.AnalyzeResponse{
+		Hypotheses: hypotheses,
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 // ListHypotheses handles GET /api/cases/{id}/hypotheses.

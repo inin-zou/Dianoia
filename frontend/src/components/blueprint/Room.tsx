@@ -240,7 +240,6 @@ function FurnitureItem({ item }: { item: Furniture }) {
           color="#94A3B8"
           anchorX="center"
           anchorY="bottom"
-          font="/fonts/JetBrainsMono-Regular.woff"
           characters="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"
         >
           {item.label.toUpperCase()}

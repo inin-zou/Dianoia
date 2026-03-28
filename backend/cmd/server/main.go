@@ -53,7 +53,7 @@ func main() {
 
 	// Create handlers
 	casesHandler := api.NewCasesHandler(supabaseClient)
-	evidenceHandler := api.NewEvidenceHandler(supabaseClient)
+	evidenceHandler := api.NewEvidenceHandler(supabaseClient, geminiClient)
 	witnessesHandler := api.NewWitnessesHandler(supabaseClient)
 	analysisHandler := api.NewAnalysisHandler(supabaseClient, geminiClient)
 	scanHandler := api.NewScanHandler(supabaseClient, marbleClient, geminiClient)

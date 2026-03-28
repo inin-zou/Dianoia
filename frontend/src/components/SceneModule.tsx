@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Box, Plus, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ import type { Evidence, EvidenceType } from '@/types';
 import { useCaseContext } from '@/lib/CaseContext';
 import { useEvidence } from '@/hooks/useEvidence';
 import { apiPost } from '@/lib/api';
+import { BlueprintView3D, seedBlueprint } from '@/components/blueprint';
+import type { EvidenceItem } from '@/components/blueprint';
+import { useCase } from '@/hooks/useCase';
 
 const typeColors: Record<EvidenceType, { bg: string; text: string; border: string; label: string }> = {
   physical: { bg: 'bg-danger/10', text: 'text-danger', border: 'border-danger/30', label: 'PHYS' },
@@ -31,8 +34,23 @@ const views = ['Blueprint 3D', 'Realistic 3D', 'Floor Plan 2D'] as const;
 export function SceneModule() {
   const { caseId } = useCaseContext();
   const { data: evidence, loading } = useEvidence(caseId);
+  const { caseData } = useCase(caseId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<string>(views[0]);
+
+  // Map evidence to 3D marker data
+  const evidenceItems: EvidenceItem[] = useMemo(() =>
+    evidence.filter(e => e.position).map(e => ({
+      id: e.id,
+      title: e.title,
+      position: e.position as { x: number; y: number; z: number },
+      assetType: (e.assetType || 'generic_marker') as EvidenceItem['assetType'],
+    })),
+    [evidence]
+  );
+
+  // Use case blueprint or fallback to seed data
+  const blueprint = (caseData?.blueprintData || seedBlueprint) as import('@/components/blueprint').BlueprintData;
   const [addOpen, setAddOpen] = useState(false);
   const [newEvidence, setNewEvidence] = useState({ title: '', type: 'physical' as EvidenceType, description: '', x: 0, y: 0, z: 0 });
   const [recentIds, setRecentIds] = useState<Set<string>>(new Set());
@@ -183,17 +201,28 @@ export function SceneModule() {
             ))}
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center viewport-frosted relative overflow-hidden" style={{ cursor: 'crosshair' }}>
-          <div className="flex flex-col items-center gap-3 text-muted-foreground relative z-10">
-            <Box size={40} strokeWidth={1} className="opacity-15" />
-            <span className="text-[11px] font-mono font-bold opacity-30 uppercase tracking-widest">{activeView}</span>
-          </div>
+        <div className="flex-1 viewport-frosted relative overflow-hidden" style={{ cursor: 'crosshair' }}>
+          {activeView === 'Blueprint 3D' ? (
+            <div className="absolute inset-0 z-10">
+              <BlueprintView3D
+                blueprintData={blueprint}
+                evidence={evidenceItems}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground relative z-10">
+                <Box size={40} strokeWidth={1} className="opacity-15" />
+                <span className="text-[11px] font-mono font-bold opacity-30 uppercase tracking-widest">{activeView}</span>
+              </div>
+            </div>
+          )}
           {/* Corner status */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-2 z-10">
+          <div className="absolute bottom-3 left-3 flex items-center gap-2 z-20">
             <span className="status-dot" />
-            <span className="text-[9px] font-mono font-bold text-muted-foreground tracking-wider">VIEWPORT_READY</span>
+            <span className="text-[9px] font-mono font-bold text-muted-foreground tracking-wider">VIEWPORT_ACTIVE</span>
           </div>
-          <div className="absolute bottom-3 right-3 z-10">
+          <div className="absolute bottom-3 right-3 z-20">
             <span className="text-[9px] font-mono text-muted-foreground/50">SCALE: 1u = 1m</span>
           </div>
         </div>
