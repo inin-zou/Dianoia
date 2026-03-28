@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { mockHypotheses } from '@/data/mockData';
+import { useCaseContext } from '@/lib/CaseContext';
+import { useHypotheses } from '@/hooks/useHypotheses';
 
 export function AnalysisModule() {
+  const { caseId } = useCaseContext();
+  const { data: hypotheses, loading } = useHypotheses(caseId);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Sort by rank
+  const sorted = [...hypotheses].sort((a, b) => a.rank - b.rank);
 
   const getProbColor = (p: number) => {
     if (p > 60) return 'bg-primary';
@@ -12,17 +18,31 @@ export function AnalysisModule() {
     return 'bg-danger';
   };
 
+  // Probability from DB is 0-1, display as percentage
+  const displayProb = (p: number) => (p <= 1 ? Math.round(p * 100) : Math.round(p));
+
   return (
     <div className="flex flex-1 min-h-0 gap-3 p-3">
       {/* Left: Hypothesis List (60%) */}
       <div className="w-[60%] flex flex-col min-h-0">
         <div className="panel-header rounded-t-lg">
           <span>// RANKED_HYPOTHESES</span>
-          <span>[{mockHypotheses.length}]</span>
+          <span>[{sorted.length}]</span>
         </div>
         <div className="flex-1 overflow-y-auto space-y-1.5 pt-2">
-          {mockHypotheses.map((h) => {
+          {loading && sorted.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-wider">Loading...</span>
+            </div>
+          )}
+          {!loading && sorted.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-wider">No hypotheses yet. Run analysis to generate.</span>
+            </div>
+          )}
+          {sorted.map((h) => {
             const expanded = expandedId === h.id;
+            const prob = displayProb(h.probability);
             return (
               <button
                 key={h.id}
@@ -39,13 +59,13 @@ export function AnalysisModule() {
                     <p className="text-[13px] font-medium text-foreground/85 leading-snug">{h.title}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${getProbColor(h.probability)} transition-all duration-500`} style={{ width: `${h.probability}%` }} />
+                        <div className={`h-full rounded-full ${getProbColor(prob)} transition-all duration-500`} style={{ width: `${prob}%` }} />
                       </div>
-                      <span className="text-[12px] font-mono font-bold text-foreground tabular-nums w-10">{h.probability}%</span>
+                      <span className="text-[12px] font-mono font-bold text-foreground tabular-nums w-10">{prob}%</span>
                     </div>
                     <div className="flex gap-2 mt-2">
-                      <Badge variant="secondary" className="text-[9px] font-mono font-bold bg-success/10 text-success border border-success/20 rounded-sm px-1.5">{h.supporting.length} SUPPORT</Badge>
-                      <Badge variant="secondary" className="text-[9px] font-mono font-bold bg-danger/10 text-danger border border-danger/20 rounded-sm px-1.5">{h.contradicting.length} CONTRA</Badge>
+                      <Badge variant="secondary" className="text-[9px] font-mono font-bold bg-success/10 text-success border border-success/20 rounded-sm px-1.5">{h.supportingEvidence.length} SUPPORT</Badge>
+                      <Badge variant="secondary" className="text-[9px] font-mono font-bold bg-danger/10 text-danger border border-danger/20 rounded-sm px-1.5">{h.contradictingEvidence.length} CONTRA</Badge>
                     </div>
                   </div>
                   <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
@@ -55,16 +75,16 @@ export function AnalysisModule() {
                   <p className="text-[12px] text-muted-foreground line-clamp-4 mb-3 leading-relaxed">{h.reasoning}</p>
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {h.supporting.map((s) => (
+                      {h.supportingEvidence.map((s) => (
                         <span key={s} className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-success/10 text-success border border-success/20">{s}</span>
                       ))}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {h.contradicting.map((c) => (
+                      {h.contradictingEvidence.map((c) => (
                         <span key={c} className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-danger/10 text-danger border border-danger/20">{c}</span>
                       ))}
                     </div>
-                    <p className="text-[10px] font-mono text-muted-foreground mt-2">{h.timelineEvents} TIMELINE_EVENTS</p>
+                    <p className="text-[10px] font-mono text-muted-foreground mt-2">{h.timeline?.length || 0} TIMELINE_EVENTS</p>
                   </div>
                 </div>
               </button>

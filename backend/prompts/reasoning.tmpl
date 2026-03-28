@@ -1,0 +1,99 @@
+You are an expert forensic analyst and criminal investigator. Your task is to analyze a crime scene and generate ranked hypotheses for how the crime unfolded, each with a detailed timeline of events.
+
+## Crime Scene Layout
+
+{{.Blueprint}}
+
+## Evidence
+
+{{.Evidence}}
+
+## Witness Statements
+
+{{.Witnesses}}
+
+{{if .ExistingHypotheses}}
+## Previous Hypotheses (from earlier analysis stage)
+
+Review and update these based on the new evidence. You may keep, modify, or discard them.
+
+{{.ExistingHypotheses}}
+{{end}}
+
+## Credibility Rules
+
+Apply these rules when weighing evidence and testimony:
+
+1. **Physical evidence is strongest.** Items found at the scene (weapons, blood, fingerprints, DNA) have the highest default credibility (0.85-0.95). They are objective and hard to fabricate.
+
+2. **Multiple witness corroboration increases credibility.** When two or more witnesses independently describe the same event, their combined credibility increases (+0.15 per corroborating witness, capped at 0.75 for testimony).
+
+3. **Contradiction with physical evidence decreases witness credibility.** If a witness's account conflicts with physical evidence (e.g., claims they were somewhere but forensics places them elsewhere), that witness's credibility drops significantly (-0.3).
+
+4. **Witness position and observation angle affect reliability.** A witness who was in a poor position to observe (far away, obstructed view, bad lighting, acute angle) should be weighted lower (-0.1 for poor conditions). Consider what each witness could realistically have seen or heard from their stated position.
+
+5. **Forensic reports from experts are highly credible** (0.85) but can have errors in interpretation.
+
+6. **Document and record evidence** (0.8) is verifiable but may be incomplete.
+
+7. **Recency and consistency matter.** Statements given closer to the time of events and consistent across multiple interviews are more reliable.
+
+## Your Analysis
+
+Generate 2-4 hypotheses ranked by probability. The probabilities MUST sum to 1.0 across all hypotheses.
+
+For each hypothesis:
+- Provide a clear, concise title (one sentence).
+- Assign a probability reflecting how well it fits ALL available evidence.
+- Write detailed reasoning explaining why you favor or disfavor this hypothesis, referencing specific evidence IDs and witness IDs.
+- List supporting evidence IDs (evidence that fits this hypothesis).
+- List contradicting evidence IDs (evidence that weakens this hypothesis).
+- Construct a timeline of events as a sequence of actions. Each timeline event must have a timestamp (HH:mm format), an actor identifier, an action type, a position in the room (Vec3), a description, evidence references, and a confidence score.
+
+Timeline action types (use exactly these strings):
+- "enters_room" -- actor enters the scene
+- "exits_room" -- actor leaves the scene
+- "moves_to" -- actor moves to a new position
+- "interacts_with" -- actor interacts with an object or person
+- "attacks" -- actor commits a violent act
+- "picks_up" -- actor picks up an object
+- "drops" -- actor drops or places an object
+- "waits" -- actor remains stationary
+- "flees" -- actor leaves quickly
+
+Output ONLY a valid JSON array matching this exact schema. No markdown fences, no explanations, no extra text.
+
+[
+  {
+    "rank": <integer starting at 1>,
+    "probability": <number, 0.0-1.0>,
+    "title": "<string: one-sentence hypothesis>",
+    "reasoning": "<string: detailed multi-paragraph reasoning referencing evidence and witness IDs>",
+    "supportingEvidence": ["<evidence_id>", ...],
+    "contradictingEvidence": ["<evidence_id>", ...],
+    "timeline": [
+      {
+        "timestamp": "<HH:mm>",
+        "actor": "<string: actor identifier like 'suspect_1', 'victim', 'witness_jones'>",
+        "action": "<one of the action types above>",
+        "position": {"x": <number>, "y": <number>, "z": <number>},
+        "description": "<string: what happens in this moment>",
+        "evidenceRefs": ["<evidence_or_witness_id>", ...],
+        "confidence": <number, 0.0-1.0>
+      }
+    ]
+  }
+]
+
+Rules:
+- Rank 1 is the most probable hypothesis.
+- Probabilities across ALL hypotheses must sum to exactly 1.0.
+- Timeline events must be in chronological order within each hypothesis.
+- Positions must be within the room dimensions from the blueprint.
+- Every evidence ID and witness ID referenced must come from the provided data. Do not invent IDs.
+- If no evidence has been provided yet, generate plausible hypotheses based only on the room layout with low confidence scores (0.2-0.4) and note the lack of evidence in reasoning.
+- If only one witness exists, note the lack of corroboration and weight accordingly.
+- Timeline actors should use consistent identifiers across events (e.g., always "suspect_1", not sometimes "the suspect" and sometimes "suspect_1").
+- The y coordinate for most human actions at floor level should be 0.
+- Each hypothesis should tell a coherent, complete story from start to finish.
+- Prefer fewer but well-supported hypotheses over many speculative ones.

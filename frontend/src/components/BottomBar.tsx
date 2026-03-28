@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { Rewind, Play, Pause, FastForward } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
-import { mockHypotheses } from '@/data/mockData';
+import { useCaseContext } from '@/lib/CaseContext';
+import { useHypotheses } from '@/hooks/useHypotheses';
 
 export function BottomBar() {
+  const { caseId } = useCaseContext();
+  const { data: hypotheses } = useHypotheses(caseId);
   const [currentTime, setCurrentTime] = useState(1320);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState('1x');
+
+  // Sort by rank
+  const sorted = [...hypotheses].sort((a, b) => a.rank - b.rank);
 
   const formatTime = (mins: number) => {
     const h = Math.floor(mins / 60).toString().padStart(2, '0');
@@ -19,6 +25,9 @@ export function BottomBar() {
     if (p > 30) return 'bg-warning';
     return 'bg-danger';
   };
+
+  // Probability from DB is 0-1, display as percentage
+  const displayProb = (p: number) => (p <= 1 ? Math.round(p * 100) : Math.round(p));
 
   return (
     <div className="glass shrink-0">
@@ -69,31 +78,39 @@ export function BottomBar() {
       {/* Hypothesis ranking */}
       <div className="panel-header">
         <span>// HYPOTHESIS_RANKING</span>
-        <span>{mockHypotheses.length} active</span>
+        <span>{sorted.length} active</span>
       </div>
       <div className="px-4 pb-3 pt-2 flex gap-2.5">
-        {mockHypotheses.map((h) => (
-          <div
-            key={h.id}
-            className="flex-1 glass-subtle rounded-lg p-3 interactive hover:bg-white/10"
-          >
-            <div className="flex items-start gap-2.5">
-              <span className="text-[10px] font-mono font-bold text-muted-foreground bg-white/5 border border-white/10 rounded-sm px-1.5 py-0.5">
-                #{h.rank}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-foreground/80 line-clamp-2 leading-snug">{h.title}</p>
-                <p className="text-xl font-mono font-bold text-primary mt-1 tracking-tight">{h.probability}%</p>
-                <div className="w-full h-0.5 bg-white/5 rounded-full mt-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${getProbColor(h.probability)} transition-all duration-500`}
-                    style={{ width: `${h.probability}%` }}
-                  />
+        {sorted.length === 0 && (
+          <div className="flex-1 flex items-center justify-center py-2">
+            <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-wider">No hypotheses</span>
+          </div>
+        )}
+        {sorted.map((h) => {
+          const prob = displayProb(h.probability);
+          return (
+            <div
+              key={h.id}
+              className="flex-1 glass-subtle rounded-lg p-3 interactive hover:bg-white/10"
+            >
+              <div className="flex items-start gap-2.5">
+                <span className="text-[10px] font-mono font-bold text-muted-foreground bg-white/5 border border-white/10 rounded-sm px-1.5 py-0.5">
+                  #{h.rank}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-foreground/80 line-clamp-2 leading-snug">{h.title}</p>
+                  <p className="text-xl font-mono font-bold text-primary mt-1 tracking-tight">{prob}%</p>
+                  <div className="w-full h-0.5 bg-white/5 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${getProbColor(prob)} transition-all duration-500`}
+                      style={{ width: `${prob}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

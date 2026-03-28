@@ -6,24 +6,26 @@
 
 @layer base {
   :root {
-    /* Deep navy operational theme */
-    --background: 222 47% 6%;
+    /* Deep navy operational theme — matched to landing page palette */
+    /* Landing frame: #051433 = 220 82% 11% */
+    /* Landing edge:  #0D2B6E = 221 79% 24% */
+    --background: 220 82% 7%;
     --foreground: 210 40% 98%;
 
-    --card: 217 33% 10%;
+    --card: 220 70% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 217 33% 12%;
+    --popover: 220 70% 13%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 217 91% 60%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 215 28% 17%;
+    --secondary: 220 55% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 28% 17%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 220 55% 16%;
+    --muted-foreground: 215 25% 55%;
 
     --accent: 217 91% 60%;
     --accent-foreground: 210 40% 98%;
@@ -31,17 +33,17 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 28% 20%;
-    --input: 215 28% 17%;
+    --border: 220 50% 20%;
+    --input: 220 55% 16%;
     --ring: 217 91% 60%;
 
     --radius: 0.5rem;
 
-    --surface: 217 33% 10%;
-    --surface-elevated: 217 33% 14%;
+    --surface: 220 70% 11%;
+    --surface-elevated: 220 60% 15%;
     --text-primary: 210 40% 98%;
-    --text-secondary: 215 20% 55%;
-    --text-tertiary: 215 16% 40%;
+    --text-secondary: 215 25% 55%;
+    --text-tertiary: 215 20% 40%;
 
     --danger: 0 72% 51%;
     --success: 142 71% 45%;
@@ -51,13 +53,13 @@
     --glass-bg: 0 0% 100%;
     --glass-border: 0 0% 100%;
 
-    --sidebar-background: 217 33% 10%;
+    --sidebar-background: 220 70% 11%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 215 28% 17%;
+    --sidebar-accent: 220 55% 16%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 215 28% 20%;
+    --sidebar-border: 220 50% 20%;
     --sidebar-ring: 217 91% 60%;
   }
 }
@@ -93,26 +95,26 @@
     color: hsl(var(--muted-foreground));
   }
 
-  /* Glass panels — variant style */
+  /* Glass panels — matched to landing page (0.1 bg, 0.3 border) */
   .glass {
-    background: hsl(var(--glass-bg) / 0.08);
+    background: hsl(var(--glass-bg) / 0.1);
     backdrop-filter: blur(12px) saturate(1.2);
     -webkit-backdrop-filter: blur(12px) saturate(1.2);
-    border: 1px solid hsl(var(--glass-border) / 0.15);
+    border: 1px solid hsl(var(--glass-border) / 0.3);
   }
 
   .glass-strong {
-    background: hsl(var(--glass-bg) / 0.12);
+    background: hsl(var(--glass-bg) / 0.15);
     backdrop-filter: blur(16px) saturate(1.4);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    border: 1px solid hsl(var(--glass-border) / 0.2);
+    border: 1px solid hsl(var(--glass-border) / 0.35);
   }
 
   .glass-subtle {
-    background: hsl(var(--glass-bg) / 0.05);
+    background: hsl(var(--glass-bg) / 0.08);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid hsl(var(--glass-border) / 0.1);
+    border: 1px solid hsl(var(--glass-border) / 0.2);
   }
 
   /* Surface utilities */
@@ -154,19 +156,19 @@
     @apply transition-all duration-200 ease-out cursor-pointer;
   }
 
-  /* Grid background — variant style */
+  /* Grid background — matched to landing (0.1 opacity lines) */
   .grid-bg {
     background-image:
-      linear-gradient(to right, hsl(var(--glass-border) / 0.07) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--glass-border) / 0.07) 1px, transparent 1px);
+      linear-gradient(to right, hsl(var(--glass-border) / 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--glass-border) / 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
   /* Fine grid for viewports */
   .grid-bg-fine {
     background-image:
-      linear-gradient(to right, hsl(var(--glass-border) / 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--glass-border) / 0.05) 1px, transparent 1px);
+      linear-gradient(to right, hsl(var(--glass-border) / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--glass-border) / 0.08) 1px, transparent 1px);
     background-size: 20px 20px;
   }
 
@@ -176,17 +178,16 @@
     background-size: 20px 20px;
   }
 
-  /* Radial gradient viewport — from variant */
+  /* Radial gradient viewport — matched to landing (white center → blue edge) */
   .viewport-gradient {
-    background: radial-gradient(circle at center, hsl(217 91% 60% / 0.08) 0%, hsl(222 47% 6%) 70%);
+    background: radial-gradient(circle at center, hsl(0 0% 100% / 0.04) 0%, hsl(220 82% 7%) 70%);
   }
 
-  /* Frosted viewport — grid + glass + haze for 3D placeholder areas */
+  /* Frosted viewport — grid + glass + haze, matched to landing palette */
   .viewport-frosted {
     position: relative;
     background:
-      radial-gradient(circle at center, hsl(217 91% 60% / 0.06) 0%, transparent 60%),
-      hsl(222 47% 6%);
+      radial-gradient(circle at center, hsl(0 0% 100% / 0.03) 0%, hsl(220 82% 7%) 65%);
     backdrop-filter: blur(1px);
   }
 
@@ -197,8 +198,8 @@
     pointer-events: none;
     z-index: 0;
     background-image:
-      linear-gradient(to right, hsl(var(--glass-border) / 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--glass-border) / 0.06) 1px, transparent 1px);
+      linear-gradient(to right, hsl(var(--glass-border) / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--glass-border) / 0.08) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
@@ -209,8 +210,8 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(ellipse 50% 40% at 50% 50%, hsl(217 60% 60% / 0.04) 0%, transparent 70%),
-      radial-gradient(ellipse 80% 60% at 30% 70%, hsl(220 40% 50% / 0.03) 0%, transparent 60%);
+      radial-gradient(ellipse 50% 40% at 50% 50%, hsl(221 79% 24% / 0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 80% 60% at 30% 70%, hsl(220 70% 30% / 0.08) 0%, transparent 60%);
     filter: blur(30px);
   }
 
@@ -288,12 +289,12 @@
     z-index: 1;
   }
 
-  /* Iridescent background — dark version (with haze) */
+  /* Iridescent background — matched to landing deep blue */
   .iridescent-bg {
     background:
-      radial-gradient(ellipse 100% 80% at 5% 15%, hsl(217 91% 60% / 0.06) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 70% at 95% 10%, hsl(258 90% 66% / 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse 90% 60% at 50% 95%, hsl(217 91% 60% / 0.05) 0%, transparent 55%),
+      radial-gradient(ellipse 100% 80% at 5% 15%, hsl(221 79% 24% / 0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 70% at 95% 10%, hsl(258 90% 40% / 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 90% 60% at 50% 95%, hsl(221 79% 24% / 0.10) 0%, transparent 55%),
       hsl(var(--background));
   }
 }

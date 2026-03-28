@@ -546,11 +546,49 @@ type GeminiClient interface {
     RefineProfile(ctx context.Context, currentImageURL string, instruction string) (string, error)
 }
 
-// Marble client interface
+// Marble client interface (World Labs API, using Marble 0.1-mini)
+// Base URL: https://api.worldlabs.ai
+// Auth: WLT-Api-Key header
 type MarbleClient interface {
-    CreateWorld(ctx context.Context, images []string) (string, error)
-    GetWorldStatus(ctx context.Context, worldID string) (string, error)
-    ExportMesh(ctx context.Context, worldID string) (string, error)
-    GetEmbedURL(ctx context.Context, worldID string) string
+    // POST /marble/v1/worlds:generate — returns operation_id
+    GenerateWorld(ctx context.Context, imageURL string, displayName string) (operationID string, err error)
+    // GET /marble/v1/operations/{operation_id} — poll until done
+    PollOperation(ctx context.Context, operationID string) (world *MarbleWorld, done bool, err error)
+    // GET /marble/v1/worlds/{world_id}
+    GetWorld(ctx context.Context, worldID string) (*MarbleWorld, error)
+}
+
+// MarbleWorld represents the response from Marble API
+type MarbleWorld struct {
+    WorldID       string       `json:"world_id"`
+    DisplayName   string       `json:"display_name"`
+    EmbedURL      string       `json:"world_marble_url"` // iframe embed
+    Assets        MarbleAssets `json:"assets"`
+}
+
+type MarbleAssets struct {
+    Caption          string            `json:"caption"`
+    ThumbnailURL     string            `json:"thumbnail_url"`
+    Splats           MarbleSplats      `json:"splats"`
+    Mesh             MarbleMesh        `json:"mesh"`
+    Imagery          MarbleImagery     `json:"imagery"`
+    SemanticsMetadata MarbleSemantics  `json:"semantics_metadata"`
+}
+
+type MarbleSplats struct {
+    SpzURLs map[string]string `json:"spz_urls"` // "100k", "500k", "full_res"
+}
+
+type MarbleMesh struct {
+    ColliderMeshURL string `json:"collider_mesh_url"` // GLB format
+}
+
+type MarbleImagery struct {
+    PanoURL string `json:"pano_url"` // panorama for VLM input
+}
+
+type MarbleSemantics struct {
+    GroundPlaneOffset float64 `json:"ground_plane_offset"`
+    MetricScaleFactor float64 `json:"metric_scale_factor"`
 }
 ```

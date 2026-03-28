@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { Evidence, EvidenceType } from '@/data/mockData';
-import { mockEvidence } from '@/data/mockData';
+import type { Evidence, EvidenceType } from '@/types';
+import { useCaseContext } from '@/lib/CaseContext';
+import { useEvidence } from '@/hooks/useEvidence';
+import { apiPost } from '@/lib/api';
 
 const typeColors: Record<EvidenceType, { bg: string; text: string; border: string; label: string }> = {
   physical: { bg: 'bg-danger/10', text: 'text-danger', border: 'border-danger/30', label: 'PHYS' },
@@ -27,28 +29,36 @@ const credColor = (c: number) => {
 const views = ['Blueprint 3D', 'Realistic 3D', 'Floor Plan 2D'] as const;
 
 export function SceneModule() {
-  const [evidence, setEvidence] = useState<Evidence[]>(mockEvidence);
+  const { caseId } = useCaseContext();
+  const { data: evidence, loading } = useEvidence(caseId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<string>(views[0]);
   const [addOpen, setAddOpen] = useState(false);
   const [newEvidence, setNewEvidence] = useState({ title: '', type: 'physical' as EvidenceType, description: '', x: 0, y: 0, z: 0 });
   const [recentIds, setRecentIds] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleAdd = () => {
-    const id = `e${Date.now()}`;
-    const item: Evidence = {
-      id,
-      title: newEvidence.title || 'Untitled',
-      type: newEvidence.type,
-      credibility: 0.5,
-      description: newEvidence.description,
-      position: { x: newEvidence.x, y: newEvidence.y, z: newEvidence.z },
-    };
-    setEvidence([...evidence, item]);
-    setRecentIds(new Set([...recentIds, id]));
-    setTimeout(() => setRecentIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 3000);
-    setAddOpen(false);
-    setNewEvidence({ title: '', type: 'physical', description: '', x: 0, y: 0, z: 0 });
+  const handleAdd = async () => {
+    setSubmitting(true);
+    try {
+      const result = await apiPost<Evidence>(`/api/cases/${caseId}/evidence`, {
+        type: newEvidence.type,
+        subtype: '',
+        title: newEvidence.title || 'Untitled',
+        description: newEvidence.description,
+        position: { x: newEvidence.x, y: newEvidence.y, z: newEvidence.z },
+      });
+      // Mark as recent for pulse animation
+      const id = result.id;
+      setRecentIds(new Set([...recentIds, id]));
+      setTimeout(() => setRecentIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 3000);
+    } catch (err) {
+      console.error('Failed to add evidence:', err);
+    } finally {
+      setSubmitting(false);
+      setAddOpen(false);
+      setNewEvidence({ title: '', type: 'physical', description: '', x: 0, y: 0, z: 0 });
+    }
   };
 
   return (
@@ -108,14 +118,24 @@ export function SceneModule() {
                     <Input type="number" value={newEvidence.z} onChange={(e) => setNewEvidence({ ...newEvidence, z: +e.target.value })} className="bg-white/5 border-white/10 focus-ring rounded-md h-9 font-mono text-sm" />
                   </div>
                 </div>
-                <Button onClick={handleAdd} className="w-full focus-ring bg-primary hover:bg-primary/80 rounded-md h-9 font-mono font-bold text-[11px] uppercase tracking-wider">
-                  Confirm Evidence
+                <Button onClick={handleAdd} disabled={submitting} className="w-full focus-ring bg-primary hover:bg-primary/80 rounded-md h-9 font-mono font-bold text-[11px] uppercase tracking-wider">
+                  {submitting ? 'Submitting...' : 'Confirm Evidence'}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
         <div className="flex-1 overflow-y-auto px-2 pb-2 pt-1 space-y-0.5">
+          {loading && evidence.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-wider">Loading...</span>
+            </div>
+          )}
+          {!loading && evidence.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-wider">No evidence yet</span>
+            </div>
+          )}
           {evidence.map((e) => {
             const tc = typeColors[e.type];
             return (
@@ -131,8 +151,8 @@ export function SceneModule() {
                     <p className="text-[12px] font-medium text-foreground/90 truncate">{e.title}</p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <Badge className={`${tc.bg} ${tc.text} border ${tc.border} text-[8px] font-mono font-bold rounded-sm px-1.5 py-0`}>{tc.label}</Badge>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${credColor(e.credibility)}`} title={`Credibility: ${e.credibility}`} />
-                      <span className="text-[9px] font-mono text-muted-foreground">{(e.credibility * 100).toFixed(0)}%</span>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${credColor(e.credibilityScore)}`} title={`Credibility: ${e.credibilityScore}`} />
+                      <span className="text-[9px] font-mono text-muted-foreground">{(e.credibilityScore * 100).toFixed(0)}%</span>
                     </div>
                   </div>
                   {e.type === 'image' && (

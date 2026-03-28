@@ -1,20 +1,85 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Eye, EyeOff, Lock, Unlock, Box } from 'lucide-react';
-import { mockActors } from '@/data/mockData';
-import type { TimelineActor } from '@/data/mockData';
+import { useCaseContext } from '@/lib/CaseContext';
+import { useHypotheses } from '@/hooks/useHypotheses';
+
+// Role-based colors for actors
+const roleColors: Record<string, string> = {
+  suspect: '#EF4444',
+  victim: '#64748B',
+  witness: '#3B82F6',
+  officer: '#22C55E',
+};
+
+interface DerivedActor {
+  id: string;
+  name: string;
+  color: string;
+  type: string;
+  visible: boolean;
+  locked: boolean;
+  actions: { start: number; end: number; label: string }[];
+}
 
 export function TimelineModule() {
-  const [actors, setActors] = useState<TimelineActor[]>(mockActors);
+  const { caseId } = useCaseContext();
+  const { data: hypotheses, loading } = useHypotheses(caseId);
+  const [visibilityOverrides, setVisibilityOverrides] = useState<Record<string, boolean>>({});
+  const [lockOverrides, setLockOverrides] = useState<Record<string, boolean>>({});
   const hourStart = 17;
   const hourEnd = 24;
   const hours = Array.from({ length: hourEnd - hourStart + 1 }, (_, i) => hourStart + i);
   const [playheadHour, setPlayheadHour] = useState(22);
 
+  // Derive actors from the top hypothesis timeline
+  const actors: DerivedActor[] = useMemo(() => {
+    const sorted = [...hypotheses].sort((a, b) => a.rank - b.rank);
+    const topHypothesis = sorted[0];
+    if (!topHypothesis?.timeline?.length) return [];
+
+    // Group timeline events by actor
+    const actorMap = new Map<string, typeof topHypothesis.timeline>();
+    for (const event of topHypothesis.timeline) {
+      if (!actorMap.has(event.actor)) {
+        actorMap.set(event.actor, []);
+      }
+      actorMap.get(event.actor)!.push(event);
+    }
+
+    const result: DerivedActor[] = [];
+    for (const [actorId, events] of actorMap) {
+      // Guess role from actor ID string
+      let role = 'suspect';
+      if (actorId.includes('victim')) role = 'victim';
+      else if (actorId.includes('witness')) role = 'witness';
+      else if (actorId.includes('officer')) role = 'officer';
+
+      // Convert HH:mm timestamps to hour numbers for track display
+      const actions = events.map((ev) => {
+        const [hh, mm] = ev.timestamp.split(':').map(Number);
+        const start = hh + (mm || 0) / 60;
+        return { start, end: start + 0.5, label: ev.description };
+      });
+
+      result.push({
+        id: actorId,
+        name: actorId.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        color: roleColors[role] || '#3B82F6',
+        type: role,
+        visible: visibilityOverrides[actorId] !== undefined ? visibilityOverrides[actorId] : true,
+        locked: lockOverrides[actorId] !== undefined ? lockOverrides[actorId] : false,
+        actions,
+      });
+    }
+
+    return result;
+  }, [hypotheses, visibilityOverrides, lockOverrides]);
+
   const toggleVisibility = (id: string) => {
-    setActors(actors.map((a) => a.id === id ? { ...a, visible: !a.visible } : a));
+    setVisibilityOverrides((prev) => ({ ...prev, [id]: !(prev[id] !== undefined ? prev[id] : true) }));
   };
   const toggleLock = (id: string) => {
-    setActors(actors.map((a) => a.id === id ? { ...a, locked: !a.locked } : a));
+    setLockOverrides((prev) => ({ ...prev, [id]: !(prev[id] !== undefined ? prev[id] : false) }));
   };
 
   const totalWidth = (hourEnd - hourStart) * 120;
@@ -40,6 +105,16 @@ export function TimelineModule() {
           <div className="panel-header">
             <span>// ACTORS</span>
           </div>
+          {loading && actors.length === 0 && (
+            <div className="flex items-center justify-center py-4">
+              <span className="text-[9px] font-mono text-muted-foreground/40">Loading...</span>
+            </div>
+          )}
+          {!loading && actors.length === 0 && (
+            <div className="flex items-center justify-center py-4">
+              <span className="text-[9px] font-mono text-muted-foreground/40">No actors</span>
+            </div>
+          )}
           {actors.map((actor) => (
             <div key={actor.id} className="h-10 flex items-center px-3 gap-2.5 border-b border-white/5 hover-row">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: actor.color }} />
