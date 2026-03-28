@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -344,7 +346,7 @@ func (c *Client) GenerateComposite(ctx context.Context, description string) ([]b
 	}
 
 	// 3. Send to Gemini image generation model
-	model := c.genClient.GenerativeModel("gemini-2.5-flash-preview-image-generation")
+	model := c.genClient.GenerativeModel("gemini-2.5-flash-image")
 	model.SetTemperature(0.4)
 	// Note: legacy SDK doesn't support ResponseModalities; the image model returns images by default
 
@@ -366,9 +368,9 @@ func (c *Client) GenerateComposite(ctx context.Context, description string) ([]b
 	return imageBytes, mimeType, nil
 }
 
-// RefineComposite generates a refined suspect composite portrait by describing
-// the current composite and applying a modification instruction.
-func (c *Client) RefineComposite(ctx context.Context, currentDescription string, instruction string) ([]byte, string, error) {
+// RefineComposite generates a refined suspect composite portrait.
+// If currentImageURL is provided, downloads and sends the image to Gemini as reference.
+func (c *Client) RefineComposite(ctx context.Context, currentDescription string, instruction string, currentImageURL string) ([]byte, string, error) {
 	// 1. Load the refinement prompt template
 	tmpl, err := loadTemplate("profile_refine.tmpl")
 	if err != nil {
@@ -386,13 +388,37 @@ func (c *Client) RefineComposite(ctx context.Context, currentDescription string,
 	}
 
 	// 3. Send to Gemini image generation model
-	model := c.genClient.GenerativeModel("gemini-2.5-flash-preview-image-generation")
+	model := c.genClient.GenerativeModel("gemini-2.5-flash-image")
 	model.SetTemperature(0.3)
-	// Note: legacy SDK doesn't support ResponseModalities; the image model returns images by default
 
-	log.Printf("[Gemini] Sending composite refinement prompt (%d bytes)", promptBuf.Len())
+	// 4. Build parts: if we have a current image URL, download and include it as reference
+	parts := []genai.Part{genai.Text(promptBuf.String())}
 
-	resp, err := model.GenerateContent(ctx, genai.Text(promptBuf.String()))
+	if currentImageURL != "" {
+		log.Printf("[Gemini] Downloading reference image: %s", currentImageURL[:min(80, len(currentImageURL))])
+		imgResp, dlErr := http.Get(currentImageURL)
+		if dlErr == nil && imgResp.StatusCode == 200 {
+			defer imgResp.Body.Close()
+			imgData, readErr := io.ReadAll(imgResp.Body)
+			if readErr == nil && len(imgData) > 0 {
+				mimeType := imgResp.Header.Get("Content-Type")
+				if mimeType == "" {
+					mimeType = "image/png"
+				}
+				parts = append([]genai.Part{
+					genai.ImageData(mimeType, imgData),
+					genai.Text("This is the current suspect portrait. Apply the following modification while keeping the face 95% identical:"),
+				}, parts...)
+				log.Printf("[Gemini] Attached reference image (%d bytes, %s)", len(imgData), mimeType)
+			}
+		} else {
+			log.Printf("[Gemini] Could not download reference image, proceeding with text-only")
+		}
+	}
+
+	log.Printf("[Gemini] Sending composite refinement prompt (%d bytes, %d parts)", promptBuf.Len(), len(parts))
+
+	resp, err := model.GenerateContent(ctx, parts...)
 	if err != nil {
 		return nil, "", fmt.Errorf("gemini RefineComposite failed: %w", err)
 	}

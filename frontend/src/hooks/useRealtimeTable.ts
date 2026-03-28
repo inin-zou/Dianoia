@@ -10,12 +10,22 @@ function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
-function mapKeys(obj: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(obj)) {
-    result[snakeToCamel(key)] = obj[key];
+function mapKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(mapKeysDeep);
   }
-  return result;
+  if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      result[snakeToCamel(key)] = mapKeysDeep((value as Record<string, unknown>)[key]);
+    }
+    return result;
+  }
+  return value;
+}
+
+function mapKeys(obj: Record<string, unknown>): Record<string, unknown> {
+  return mapKeysDeep(obj) as Record<string, unknown>;
 }
 
 /**

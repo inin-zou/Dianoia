@@ -38,6 +38,7 @@ func (h *AnalysisHandler) CaseRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/analyze", h.Analyze)
 	r.Get("/hypotheses", h.ListHypotheses)
+	r.Delete("/hypotheses", h.ClearHypotheses)
 	return r
 }
 
@@ -116,4 +117,21 @@ func (h *AnalysisHandler) GetHypothesis(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+// ClearHypotheses handles DELETE /api/cases/{id}/hypotheses.
+// Deletes all hypotheses for a given case.
+func (h *AnalysisHandler) ClearHypotheses(w http.ResponseWriter, r *http.Request) {
+	caseID := chi.URLParam(r, "id")
+
+	err := h.db.Delete(r.Context(), "hypotheses", map[string]string{
+		"case_id": "eq." + caseID,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to clear hypotheses: "+err.Error())
+		return
+	}
+
+	log.Printf("[Analysis] Cleared all hypotheses for case %s", caseID)
+	w.WriteHeader(http.StatusNoContent)
 }

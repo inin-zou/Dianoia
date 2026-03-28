@@ -105,6 +105,7 @@ func main() {
 				// Analysis
 				r.Post("/analyze", analysisHandler.Analyze)
 				r.Get("/hypotheses", analysisHandler.ListHypotheses)
+				r.Delete("/hypotheses", analysisHandler.ClearHypotheses)
 
 				// Scan & Blueprint
 				r.Post("/scan", scanHandler.StartScan)

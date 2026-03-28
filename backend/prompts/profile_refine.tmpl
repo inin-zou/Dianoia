@@ -1,27 +1,27 @@
-You are refining an existing police composite sketch portrait. The goal is to apply a specific modification while maintaining 95% consistency with the existing face.
+You are refining an existing photorealistic suspect portrait. Apply the specific modification while keeping 95% of the face identical. The result MUST look like a real photograph, NOT a sketch or illustration.
 
-## Current Composite Description
+## Current Portrait Description
 
 {{.CurrentImageDescription}}
 
-## Refinement Instruction
+## Modification Requested
 
 {{.Instruction}}
 
-## Refinement Rules
+## Rules
 
-- PRESERVE all existing facial features that are NOT mentioned in the refinement instruction. The face must remain recognizable as the same person.
-- APPLY only the specific change requested. Do not alter unrelated features.
-- Maintain the same:
-  - Head angle and pose (front-facing)
-  - Lighting (even, studio-style)
-  - Background (plain, neutral gray)
-  - Image framing (head and shoulders)
-  - Overall facial structure and proportions (unless the instruction specifically modifies them)
-  - Skin tone (unless the instruction specifically modifies it)
-  - Eye color and shape (unless the instruction specifically modifies them)
-- The modification should look natural and integrated, not pasted on or artificial.
-- If the instruction is ambiguous (e.g., "add a beard" without specifying type), choose a moderate, natural-looking default (e.g., short trimmed beard).
-- If the instruction contradicts a previous feature (e.g., "remove glasses" when glasses are present), cleanly remove it and show the natural face underneath.
+- Output: PHOTOREALISTIC photograph. Real skin, real hair, real lighting. Must look like an actual camera photo.
+- PRESERVE all features NOT mentioned in the modification. Same person, same face structure.
+- APPLY only the specific change requested.
+- Keep identical:
+  - Front-facing headshot pose
+  - Soft studio lighting, natural skin tones
+  - Plain gray background
+  - Head and shoulders framing
+  - Facial structure and proportions (unless explicitly changed)
+  - Skin tone, eye color/shape (unless explicitly changed)
+- The modification must look natural and integrated.
+- For ambiguous instructions (e.g., "add beard"), choose a natural moderate default.
+- Result must be indistinguishable from a real photograph.
 
-Generate the updated portrait with the requested modification applied. The result should look like the same person with only the specified change.
+Generate the updated photorealistic portrait with only the requested change applied.

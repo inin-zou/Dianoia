@@ -52,7 +52,9 @@ func (s *ProfilingService) GenerateComposite(ctx context.Context, caseID string,
 	log.Printf("[Profiling] Generating composite for case=%s name=%q", caseID, name)
 	imageBytes, mimeType, err := s.gemini.GenerateComposite(ctx, description)
 	if err != nil {
-		return nil, fmt.Errorf("generating composite image: %w", err)
+		log.Printf("[Profiling] Image generation failed (may be quota): %v — creating profile without image", err)
+		// Fallback: create profile without image
+		return s.createProfileWithoutImage(ctx, caseID, name, description, sourceWitnessID)
 	}
 
 	// 2. Upload to Supabase Storage
@@ -107,6 +109,45 @@ func (s *ProfilingService) GenerateComposite(ctx context.Context, caseID string,
 	return &profile, nil
 }
 
+// createProfileWithoutImage creates a profile row without generating an image (fallback when Gemini quota is hit).
+func (s *ProfilingService) createProfileWithoutImage(ctx context.Context, caseID string, name string, description string, sourceWitnessID *string) (*types.SuspectProfile, error) {
+	profileID := uuid.New().String()
+	now := time.Now()
+
+	revision := map[string]string{
+		"instruction": "Profile created from description (image generation pending)",
+		"imageUrl":    "",
+		"timestamp":   now.Format(time.RFC3339),
+	}
+	revisionJSON, _ := json.Marshal([]interface{}{revision})
+
+	profileRow := map[string]interface{}{
+		"id":                profileID,
+		"case_id":           caseID,
+		"name":              name,
+		"description":       description,
+		"current_image_url": nil,
+		"revision_history":  json.RawMessage(revisionJSON),
+		"source_witness_id": sourceWitnessID,
+		"metadata":          json.RawMessage("{}"),
+		"created_at":        now.Format(time.RFC3339),
+		"updated_at":        now.Format(time.RFC3339),
+	}
+
+	result, err := s.db.Insert(ctx, "suspect_profiles", profileRow)
+	if err != nil {
+		return nil, fmt.Errorf("inserting profile: %w", err)
+	}
+
+	var profile types.SuspectProfile
+	if err := json.Unmarshal(result, &profile); err != nil {
+		return nil, fmt.Errorf("parsing profile: %w", err)
+	}
+
+	log.Printf("[Profiling] Created profile %s without image (quota fallback)", profileID)
+	return &profile, nil
+}
+
 // RefineComposite takes an existing profile and applies a modification instruction.
 // It fetches the current profile, generates a refined image, uploads it, and
 // updates the profile row with the new image URL and revision history entry.
@@ -132,9 +173,15 @@ func (s *ProfilingService) RefineComposite(ctx context.Context, profileID string
 	// 2. Generate refined composite image
 	// We pass the original description as the "current image description" since
 	// we can't send the actual image back with the legacy SDK text-only approach.
-	imageBytes, mimeType, err := s.gemini.RefineComposite(ctx, profile.Description, instruction)
+	currentImgURL := ""
+	if profile.CurrentImageURL != nil {
+		currentImgURL = *profile.CurrentImageURL
+	}
+	imageBytes, mimeType, err := s.gemini.RefineComposite(ctx, profile.Description, instruction, currentImgURL)
 	if err != nil {
-		return nil, fmt.Errorf("refining composite image: %w", err)
+		log.Printf("[Profiling] Refinement image generation failed: %v — saving instruction without image", err)
+		// Fallback: save the instruction in revision history without a new image
+		return s.saveRefinementWithoutImage(ctx, profileID, &profile, instruction)
 	}
 
 	// 3. Upload new image to Supabase Storage
@@ -183,4 +230,39 @@ func (s *ProfilingService) RefineComposite(ctx context.Context, profileID string
 
 	log.Printf("[Profiling] Refined profile %s (revision %d) with image at %s", profileID, revisionNum, publicURL)
 	return &updatedProfile, nil
+}
+
+// saveRefinementWithoutImage saves the refinement instruction to history without generating a new image.
+func (s *ProfilingService) saveRefinementWithoutImage(ctx context.Context, profileID string, profile *types.SuspectProfile, instruction string) (*types.SuspectProfile, error) {
+	now := time.Now()
+	newRevision := types.ProfileRevision{
+		Instruction: instruction + " (image generation pending - quota limit)",
+		ImageURL:    func() string { if profile.CurrentImageURL != nil { return *profile.CurrentImageURL }; return "" }(),
+		Timestamp:   now.Format(time.RFC3339),
+	}
+
+	revisions := append(profile.RevisionHistory, newRevision)
+	revisionJSON, _ := json.Marshal(revisions)
+
+	// Update description to include the refinement
+	newDesc := profile.Description + " | Refinement: " + instruction
+
+	updates := map[string]interface{}{
+		"description":      newDesc,
+		"revision_history": json.RawMessage(revisionJSON),
+		"updated_at":       now.Format(time.RFC3339),
+	}
+
+	result, err := s.db.Update(ctx, "suspect_profiles", map[string]string{"id": "eq." + profileID}, updates)
+	if err != nil {
+		return nil, fmt.Errorf("saving refinement: %w", err)
+	}
+
+	var updated types.SuspectProfile
+	if err := json.Unmarshal(result, &updated); err != nil {
+		return nil, fmt.Errorf("parsing updated profile: %w", err)
+	}
+
+	log.Printf("[Profiling] Saved refinement for %s without image (fallback)", profileID)
+	return &updated, nil
 }

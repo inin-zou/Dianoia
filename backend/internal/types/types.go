@@ -25,12 +25,12 @@ type Case struct {
 	Title           string          `json:"title"`
 	Description     string          `json:"description"`
 	Status          string          `json:"status"`
-	MarbleWorldID   *string         `json:"marbleWorldId"`
-	BlueprintData   *BlueprintData  `json:"blueprintData"`
-	RoomDescription json.RawMessage `json:"roomDescription"`
-	ScaleFactor     float64         `json:"scaleFactor"`
-	CreatedAt       time.Time       `json:"createdAt"`
-	UpdatedAt       time.Time       `json:"updatedAt"`
+	MarbleWorldID   *string         `json:"marble_world_id"`
+	BlueprintData   *BlueprintData  `json:"blueprint_data"`
+	RoomDescription json.RawMessage `json:"room_description"`
+	ScaleFactor     float64         `json:"scale_factor"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 // === Blueprint ===
@@ -177,14 +177,14 @@ type ProfileRevision struct {
 
 type MarbleScan struct {
 	ID             string         `json:"id"`
-	CaseID         string         `json:"caseId"`
-	WorldID        *string        `json:"worldId"`
+	CaseID         string         `json:"case_id"`
+	WorldID        *string        `json:"world_id"`
 	Status         string         `json:"status"`
-	EmbedURL       *string        `json:"embedUrl"`
-	MeshExportURL  *string        `json:"meshExportUrl"`
-	SplatExportURL *string        `json:"splatExportUrl"`
-	RenderedViews  []RenderedView `json:"renderedViews"`
-	CreatedAt      time.Time      `json:"createdAt"`
+	EmbedURL       *string        `json:"embed_url"`
+	MeshExportURL  *string        `json:"mesh_export_url"`
+	SplatExportURL *string        `json:"splat_export_url"`
+	RenderedViews  []RenderedView `json:"rendered_views"`
+	CreatedAt      time.Time      `json:"created_at"`
 }
 
 type RenderedView struct {

@@ -1,15 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Zap, Loader2 } from 'lucide-react';
+import { ChevronDown, Zap, Loader2, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCaseContext } from '@/lib/CaseContext';
 import { useHypotheses } from '@/hooks/useHypotheses';
-import { apiPost } from '@/lib/api';
+import { useEvidence } from '@/hooks/useEvidence';
+import { useWitnesses } from '@/hooks/useWitnesses';
+import { apiPost, apiDelete } from '@/lib/api';
+import { EvidenceGraph } from '@/components/EvidenceGraph';
 
 export function AnalysisModule() {
   const { caseId } = useCaseContext();
   const { data: hypotheses, loading } = useHypotheses(caseId);
+  const { data: evidence } = useEvidence(caseId);
+  const { data: witnesses } = useWitnesses(caseId);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [currentStage, setCurrentStage] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -80,6 +86,18 @@ export function AnalysisModule() {
     }
   };
 
+  const clearHypotheses = async () => {
+    if (!window.confirm('Clear all hypotheses for this case? This cannot be undone.')) return;
+    setClearing(true);
+    try {
+      await apiDelete(`/api/cases/${caseId}/hypotheses`);
+    } catch (err) {
+      console.error('Failed to clear hypotheses:', err);
+    } finally {
+      setClearing(false);
+    }
+  };
+
   // Sort by rank
   const sorted = [...hypotheses].sort((a, b) => a.rank - b.rank);
 
@@ -135,6 +153,19 @@ export function AnalysisModule() {
                 <Zap size={8} />
               )}
               ALL
+            </button>
+            <div className="w-px h-3 bg-white/10 mx-0.5" />
+            <button
+              onClick={clearHypotheses}
+              disabled={analyzing || clearing || sorted.length === 0}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9px] font-mono font-bold uppercase tracking-wider interactive focus-ring text-danger/70 hover:bg-danger/10 hover:text-danger disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {clearing ? (
+                <Loader2 size={8} className="animate-spin" />
+              ) : (
+                <Trash2 size={8} />
+              )}
+              Clear
             </button>
           </div>
         </div>
@@ -249,31 +280,18 @@ export function AnalysisModule() {
         </div>
       </div>
 
-      {/* Right: Evidence Graph Placeholder (40%) */}
+      {/* Right: Evidence Graph (40%) */}
       <div className="w-[40%] glass-subtle rounded-lg flex flex-col overflow-hidden">
         <div className="panel-header">
           <span>// EVIDENCE_GRAPH</span>
-          <span>[NODES]</span>
+          <span>[{evidence.length + witnesses.length} NODES]</span>
         </div>
-        <div className="flex-1 flex items-center justify-center relative viewport-frosted overflow-hidden">
-          <svg className="absolute inset-0 w-full h-full opacity-10" viewBox="0 0 400 400">
-            <circle cx="100" cy="120" r="4" fill="hsl(217 91% 60%)" />
-            <circle cx="250" cy="80" r="4" fill="hsl(258 90% 66%)" />
-            <circle cx="300" cy="200" r="4" fill="hsl(217 91% 60%)" />
-            <circle cx="150" cy="280" r="4" fill="hsl(217 91% 60%)" />
-            <circle cx="200" cy="180" r="6" fill="white" />
-            <circle cx="80" cy="320" r="4" fill="hsl(0 72% 51%)" />
-            <circle cx="320" cy="320" r="4" fill="hsl(142 71% 45%)" />
-            <line x1="100" y1="120" x2="200" y2="180" stroke="white" strokeWidth="0.5" opacity="0.3" />
-            <line x1="250" y1="80" x2="200" y2="180" stroke="white" strokeWidth="0.5" opacity="0.3" />
-            <line x1="300" y1="200" x2="200" y2="180" stroke="white" strokeWidth="0.5" opacity="0.3" />
-            <line x1="150" y1="280" x2="200" y2="180" stroke="white" strokeWidth="0.5" opacity="0.3" />
-            <line x1="80" y1="320" x2="150" y2="280" stroke="white" strokeWidth="0.5" opacity="0.2" />
-            <line x1="320" y1="320" x2="300" y2="200" stroke="white" strokeWidth="0.5" opacity="0.2" />
-          </svg>
-          <span className="text-[10px] font-mono font-bold text-muted-foreground/30 relative z-10 uppercase tracking-widest">
-            Awaiting Data
-          </span>
+        <div className="flex-1 relative viewport-frosted overflow-hidden">
+          <EvidenceGraph
+            evidence={evidence}
+            witnesses={witnesses}
+            hypotheses={sorted}
+          />
         </div>
       </div>
     </div>

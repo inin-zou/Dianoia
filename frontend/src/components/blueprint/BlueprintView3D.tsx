@@ -42,9 +42,16 @@ function SceneContent({
         makeDefault
         enableDamping
         dampingFactor={0.12}
-        minDistance={2}
-        maxDistance={30}
+        enablePan={true}
+        panSpeed={1.0}
+        minDistance={1}
+        maxDistance={40}
         maxPolarAngle={Math.PI / 2.1}
+        target={[
+          blueprintData ? blueprintData.dimensions.width / 2 : 4,
+          0,
+          blueprintData ? blueprintData.dimensions.depth / 2 : 3,
+        ]}
       />
 
       {/* Room or loading */}

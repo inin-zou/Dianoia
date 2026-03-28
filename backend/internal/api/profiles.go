@@ -35,6 +35,7 @@ func (h *ProfilesHandler) ItemRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/{id}", h.GetProfile)
 	r.Post("/{id}/refine", h.RefineProfile)
+	r.Delete("/{id}", h.DeleteProfile)
 	return r
 }
 
@@ -126,4 +127,20 @@ func (h *ProfilesHandler) RefineProfile(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, http.StatusOK, profile)
+}
+
+// DeleteProfile handles DELETE /api/profiles/{id}.
+// Deletes a single suspect profile.
+func (h *ProfilesHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "id")
+
+	err := h.db.Delete(r.Context(), "suspect_profiles", map[string]string{
+		"id": "eq." + profileID,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete profile: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

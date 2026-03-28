@@ -15,3 +15,8 @@ export async function apiGet<T>(path: string): Promise<T> {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export async function apiDelete(path: string): Promise<void> {
+  const res = await fetch(`${API_URL}${path}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(await res.text());
+}

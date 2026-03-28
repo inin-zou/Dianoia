@@ -324,7 +324,10 @@ export function SceneModule() {
             </div>
           ) : activeView === 'Realistic 3D' ? (
             <div className="absolute inset-0 z-10">
-              <MarbleEmbed embedUrl={embedUrl} />
+              <MarbleEmbed
+                embedUrl={embedUrl}
+                panoUrl={scan?.renderedViews?.[0]?.imageUrl}
+              />
             </div>
           ) : activeView === 'Floor Plan 2D' ? (
             <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
