@@ -192,6 +192,41 @@ func (c *Client) Update(ctx context.Context, table string, filters map[string]st
 	return json.RawMessage(body), nil
 }
 
+// UploadFile uploads a file to Supabase Storage and returns the public URL.
+// bucket is the storage bucket name, path is the file path within the bucket,
+// data is the raw file bytes, and contentType is the MIME type.
+func (c *Client) UploadFile(ctx context.Context, bucket string, path string, data []byte, contentType string) (string, error) {
+	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", c.baseURL, bucket, path)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("creating upload request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.serviceKey)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("x-upsert", "true")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("executing upload request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading upload response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("supabase storage error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Return the public URL for the uploaded file
+	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", c.baseURL, bucket, path)
+	return publicURL, nil
+}
+
 // Delete performs a DELETE request on rows matching filters.
 func (c *Client) Delete(ctx context.Context, table string, filters map[string]string) error {
 	url := c.restURL(table)

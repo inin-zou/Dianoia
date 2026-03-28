@@ -8,6 +8,13 @@ import {
   type ReactNode,
 } from 'react';
 
+export interface TimeRange {
+  /** Start of scrubber range in minutes from 00:00 */
+  start: number;
+  /** End of scrubber range in minutes from 00:00 */
+  end: number;
+}
+
 interface TimelineContextValue {
   /** Minutes from 00:00 (0-1439) */
   currentTime: number;
@@ -16,24 +23,31 @@ interface TimelineContextValue {
   speed: number;
   /** Which hypothesis timeline to display */
   selectedHypothesisId: string | null;
+  /** Dynamic scrubber range based on hypothesis events */
+  timeRange: TimeRange;
 
   play: () => void;
   pause: () => void;
   setTime: (mins: number) => void;
   setSpeed: (n: number) => void;
   selectHypothesis: (id: string | null) => void;
+  setTimeRange: (range: TimeRange) => void;
 }
+
+const DEFAULT_TIME_RANGE: TimeRange = { start: 0, end: 1439 };
 
 const TimelineContext = createContext<TimelineContextValue>({
   currentTime: 0,
   playing: false,
   speed: 1,
   selectedHypothesisId: null,
+  timeRange: DEFAULT_TIME_RANGE,
   play: () => {},
   pause: () => {},
   setTime: () => {},
   setSpeed: () => {},
   selectHypothesis: () => {},
+  setTimeRange: () => {},
 });
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
@@ -41,11 +55,13 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeedState] = useState(1);
   const [selectedHypothesisId, setSelectedHypothesisId] = useState<string | null>(null);
+  const [timeRange, setTimeRangeState] = useState<TimeRange>(DEFAULT_TIME_RANGE);
 
   // Use refs to avoid stale closures in rAF loop
   const playingRef = useRef(playing);
   const speedRef = useRef(speed);
   const currentTimeRef = useRef(currentTime);
+  const timeRangeRef = useRef(timeRange);
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number>(0);
 
@@ -60,6 +76,10 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     currentTimeRef.current = currentTime;
   }, [currentTime]);
+
+  useEffect(() => {
+    timeRangeRef.current = timeRange;
+  }, [timeRange]);
 
   // Animation loop using requestAnimationFrame for smooth 60fps
   const tick = useCallback((timestamp: number) => {
@@ -77,8 +97,9 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     const deltaMinutes = (elapsed / 1000) * speedRef.current;
     const nextTime = currentTimeRef.current + deltaMinutes;
 
-    if (nextTime >= 1439) {
-      setCurrentTime(1439);
+    const rangeEnd = timeRangeRef.current.end;
+    if (nextTime >= rangeEnd) {
+      setCurrentTime(rangeEnd);
       setPlaying(false);
       return;
     }
@@ -122,6 +143,10 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     setSelectedHypothesisId(id);
   }, []);
 
+  const setTimeRange = useCallback((range: TimeRange) => {
+    setTimeRangeState(range);
+  }, []);
+
   return (
     <TimelineContext.Provider
       value={{
@@ -129,11 +154,13 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         playing,
         speed,
         selectedHypothesisId,
+        timeRange,
         play,
         pause,
         setTime,
         setSpeed,
         selectHypothesis,
+        setTimeRange,
       }}
     >
       {children}

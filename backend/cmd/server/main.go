@@ -8,6 +8,7 @@ import (
 	"dianoia/internal/api"
 	"dianoia/internal/gemini"
 	"dianoia/internal/marble"
+	"dianoia/internal/service"
 	"dianoia/internal/supabase"
 
 	"github.com/go-chi/chi/v5"
@@ -51,13 +52,16 @@ func main() {
 		log.Println("Marble client initialized")
 	}
 
+	// Create services
+	profilingService := service.NewProfilingService(supabaseClient, geminiClient)
+
 	// Create handlers
 	casesHandler := api.NewCasesHandler(supabaseClient)
 	evidenceHandler := api.NewEvidenceHandler(supabaseClient, geminiClient)
 	witnessesHandler := api.NewWitnessesHandler(supabaseClient)
 	analysisHandler := api.NewAnalysisHandler(supabaseClient, geminiClient)
 	scanHandler := api.NewScanHandler(supabaseClient, marbleClient, geminiClient)
-	profilesHandler := api.NewProfilesHandler(supabaseClient, geminiClient)
+	profilesHandler := api.NewProfilesHandler(supabaseClient, profilingService)
 
 	// Set up router
 	r := chi.NewRouter()

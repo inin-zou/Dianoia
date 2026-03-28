@@ -36,7 +36,7 @@ interface DerivedActor {
 export function TimelineModule() {
   const { caseId, caseData } = useCaseContext();
   const { data: hypotheses, loading } = useHypotheses(caseId);
-  const { currentTime, selectedHypothesisId, selectHypothesis } = useTimeline();
+  const { currentTime, selectedHypothesisId, selectHypothesis, setTime, setTimeRange } = useTimeline();
 
   const [visibilityOverrides, setVisibilityOverrides] = useState<Record<string, boolean>>({});
   const [lockOverrides, setLockOverrides] = useState<Record<string, boolean>>({});
@@ -70,6 +70,21 @@ export function TimelineModule() {
     const endHour = Math.min(24, Math.ceil(range.end / 60) + 1);
     return { startHour, endHour };
   }, [selectedHypothesis]);
+
+  // Sync shared context time range when hypothesis changes
+  useEffect(() => {
+    if (!selectedHypothesis) return;
+    const range = getTimelineRange(selectedHypothesis);
+    if (range.start === 0 && range.end === 1439) return;
+    const paddedStart = Math.max(0, range.start - 30);
+    const paddedEnd = Math.min(1439, range.end + 30);
+    setTimeRange({ start: paddedStart, end: paddedEnd });
+    // Auto-jump to first event if outside range
+    if (currentTime < paddedStart || currentTime > paddedEnd) {
+      setTime(range.start);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHypothesisId, selectedHypothesis, setTimeRange, setTime]);
 
   const hours = Array.from(
     { length: timeRange.endHour - timeRange.startHour + 1 },

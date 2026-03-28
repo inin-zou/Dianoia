@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Plus, Upload } from 'lucide-react';
+import { Box, Plus, Upload, ScanLine, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,9 +10,13 @@ import { Label } from '@/components/ui/label';
 import type { Evidence, EvidenceType } from '@/types';
 import { useCaseContext } from '@/lib/CaseContext';
 import { useEvidence } from '@/hooks/useEvidence';
+import { useHypotheses } from '@/hooks/useHypotheses';
+import { useMarbleScan } from '@/hooks/useMarbleScan';
+import { useTimeline } from '@/lib/TimelineContext';
+import { getActorPositionsAtTime } from '@/lib/timelineAnimation';
 import { apiPost } from '@/lib/api';
-import { BlueprintView3D, seedBlueprint } from '@/components/blueprint';
-import type { EvidenceItem } from '@/components/blueprint';
+import { BlueprintView3D, FloorPlanSVG, MarbleEmbed, seedBlueprint } from '@/components/blueprint';
+import type { EvidenceItem, ActorData } from '@/components/blueprint';
 import { useCase } from '@/hooks/useCase';
 
 const typeColors: Record<EvidenceType, { bg: string; text: string; border: string; label: string }> = {
@@ -20,6 +24,12 @@ const typeColors: Record<EvidenceType, { bg: string; text: string; border: strin
   forensic: { bg: 'bg-purple/10', text: 'text-purple', border: 'border-purple/30', label: 'FRNSC' },
   document: { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/30', label: 'DOC' },
   image: { bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30', label: 'IMG' },
+};
+
+const stageColors: Record<number, { bg: string; text: string; border: string }> = {
+  0: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
+  1: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
+  2: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
 };
 
 const credColor = (c: number) => {
@@ -34,7 +44,10 @@ const views = ['Blueprint 3D', 'Realistic 3D', 'Floor Plan 2D'] as const;
 export function SceneModule() {
   const { caseId } = useCaseContext();
   const { data: evidence, loading } = useEvidence(caseId);
+  const { data: hypotheses } = useHypotheses(caseId);
   const { caseData } = useCase(caseId);
+  const { scan } = useMarbleScan(caseId);
+  const { currentTime, selectedHypothesisId } = useTimeline();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<string>(views[0]);
 
@@ -49,12 +62,30 @@ export function SceneModule() {
     [evidence]
   );
 
+  // Compute actor positions from the selected hypothesis + current timeline time
+  const selectedHypothesis = useMemo(
+    () => hypotheses.find((h) => h.id === selectedHypothesisId) || null,
+    [hypotheses, selectedHypothesisId]
+  );
+
+  const actorPositions: ActorData[] = useMemo(() => {
+    if (!selectedHypothesis) return [];
+    return getActorPositionsAtTime(selectedHypothesis, currentTime);
+  }, [selectedHypothesis, currentTime]);
+
   // Use case blueprint or fallback to seed data
   const blueprint = (caseData?.blueprintData || seedBlueprint) as import('@/components/blueprint').BlueprintData;
   const [addOpen, setAddOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
   const [newEvidence, setNewEvidence] = useState({ title: '', type: 'physical' as EvidenceType, description: '', x: 0, y: 0, z: 0 });
+  const [scanUrl, setScanUrl] = useState('');
   const [recentIds, setRecentIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [scanSubmitting, setScanSubmitting] = useState(false);
+
+  // Determine embed URL and scan status from marble scan data
+  const embedUrl = scan?.embedUrl ?? null;
+  const scanStatus = scan?.status ?? null;
 
   const handleAdd = async () => {
     setSubmitting(true);
@@ -76,6 +107,22 @@ export function SceneModule() {
       setSubmitting(false);
       setAddOpen(false);
       setNewEvidence({ title: '', type: 'physical', description: '', x: 0, y: 0, z: 0 });
+    }
+  };
+
+  const handleStartScan = async () => {
+    if (!scanUrl.trim()) return;
+    setScanSubmitting(true);
+    try {
+      await apiPost(`/api/cases/${caseId}/scan`, {
+        imageUrl: scanUrl.trim(),
+      });
+      setScanOpen(false);
+      setScanUrl('');
+    } catch (err) {
+      console.error('Failed to start scan:', err);
+    } finally {
+      setScanSubmitting(false);
     }
   };
 
@@ -156,6 +203,7 @@ export function SceneModule() {
           )}
           {evidence.map((e) => {
             const tc = typeColors[e.type];
+            const sc = stageColors[e.stageOrder] || stageColors[0];
             return (
               <button
                 key={e.id}
@@ -169,6 +217,9 @@ export function SceneModule() {
                     <p className="text-[12px] font-medium text-foreground/90 truncate">{e.title}</p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <Badge className={`${tc.bg} ${tc.text} border ${tc.border} text-[8px] font-mono font-bold rounded-sm px-1.5 py-0`}>{tc.label}</Badge>
+                      <Badge className={`${sc.bg} ${sc.text} border ${sc.border} text-[8px] font-mono font-bold rounded-sm px-1.5 py-0`}>
+                        S{e.stageOrder}
+                      </Badge>
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${credColor(e.credibilityScore)}`} title={`Credibility: ${e.credibilityScore}`} />
                       <span className="text-[9px] font-mono text-muted-foreground">{(e.credibilityScore * 100).toFixed(0)}%</span>
                     </div>
@@ -189,16 +240,77 @@ export function SceneModule() {
           <span className="text-[10px] font-mono font-bold text-muted-foreground tracking-wider">
             /case/viewport/{activeView.toLowerCase().replace(/\s/g, '_')}
           </span>
-          <div className="tactical-segmented">
-            {views.map((v) => (
-              <button
-                key={v}
-                onClick={() => setActiveView(v)}
-                className={activeView === v ? 'tactical-segmented-item-active' : 'tactical-segmented-item hover:text-foreground'}
-              >
-                {v}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            {/* Scan Upload Button */}
+            <Dialog open={scanOpen} onOpenChange={setScanOpen}>
+              <DialogTrigger asChild>
+                <button className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-primary interactive focus-ring px-2 py-1 rounded-sm hover:bg-white/10 uppercase tracking-wider">
+                  {scanStatus === 'processing' ? (
+                    <Loader2 size={10} className="animate-spin" />
+                  ) : (
+                    <ScanLine size={10} />
+                  )}
+                  {scanStatus === 'processing' ? 'Scanning...' : 'Scan'}
+                </button>
+              </DialogTrigger>
+              <DialogContent className="glass-strong rounded-lg border-white/15">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground font-mono text-sm tracking-wider">// 3D_SCENE_SCAN</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-label mb-1.5 block">Scene Image URL</Label>
+                    <Input
+                      value={scanUrl}
+                      onChange={(e) => setScanUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="bg-white/5 border-white/10 focus-ring rounded-md h-9 font-mono text-sm"
+                    />
+                    <p className="text-[9px] font-mono text-muted-foreground/50 mt-1.5">
+                      Provide a URL to a crime scene photograph. Marble will generate an interactive 3D world (~30-45s).
+                    </p>
+                  </div>
+                  {scanStatus === 'processing' && (
+                    <div className="flex items-center gap-2 text-warning">
+                      <Loader2 size={12} className="animate-spin" />
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Scan in progress...</span>
+                    </div>
+                  )}
+                  {scanStatus === 'ready' && (
+                    <div className="flex items-center gap-2 text-success">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Scan ready - view in Realistic 3D tab</span>
+                    </div>
+                  )}
+                  {scanStatus === 'failed' && (
+                    <div className="flex items-center gap-2 text-danger">
+                      <span className="w-1.5 h-1.5 rounded-full bg-danger" />
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Previous scan failed - try again</span>
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleStartScan}
+                    disabled={scanSubmitting || !scanUrl.trim() || scanStatus === 'processing'}
+                    className="w-full focus-ring bg-primary hover:bg-primary/80 rounded-md h-9 font-mono font-bold text-[11px] uppercase tracking-wider"
+                  >
+                    {scanSubmitting ? 'Starting Scan...' : 'Start 3D Scan'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* View Switcher */}
+            <div className="tactical-segmented">
+              {views.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setActiveView(v)}
+                  className={activeView === v ? 'tactical-segmented-item-active' : 'tactical-segmented-item hover:text-foreground'}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex-1 viewport-frosted relative overflow-hidden" style={{ cursor: 'crosshair' }}>
@@ -207,6 +319,19 @@ export function SceneModule() {
               <BlueprintView3D
                 blueprintData={blueprint}
                 evidence={evidenceItems}
+                actors={actorPositions}
+              />
+            </div>
+          ) : activeView === 'Realistic 3D' ? (
+            <div className="absolute inset-0 z-10">
+              <MarbleEmbed embedUrl={embedUrl} />
+            </div>
+          ) : activeView === 'Floor Plan 2D' ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
+              <FloorPlanSVG
+                blueprint={blueprint}
+                evidence={evidenceItems}
+                className="max-w-full max-h-full"
               />
             </div>
           ) : (
@@ -215,6 +340,14 @@ export function SceneModule() {
                 <Box size={40} strokeWidth={1} className="opacity-15" />
                 <span className="text-[11px] font-mono font-bold opacity-30 uppercase tracking-widest">{activeView}</span>
               </div>
+            </div>
+          )}
+          {/* Actor count overlay when actors are visible */}
+          {actorPositions.length > 0 && (
+            <div className="absolute top-3 left-3 flex items-center gap-2 z-20">
+              <span className="text-[9px] font-mono font-bold text-primary/80 bg-primary/10 border border-primary/20 rounded-sm px-1.5 py-0.5">
+                {actorPositions.length} ACTOR{actorPositions.length !== 1 ? 'S' : ''} VISIBLE
+              </span>
             </div>
           )}
           {/* Corner status */}

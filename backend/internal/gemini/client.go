@@ -162,7 +162,7 @@ func (c *Client) GenerateHypotheses(ctx context.Context, evidence []types.Eviden
 	}
 
 	// 4. Send to Gemini
-	model := c.genClient.GenerativeModel("gemini-2.0-flash")
+	model := c.genClient.GenerativeModel("gemini-3-flash-preview")
 	model.SystemInstruction = genai.NewUserContent(genai.Text("You are a forensic analyst. Output ONLY valid JSON. No markdown fences, no explanations, no extra text."))
 	model.SetTemperature(0.7)
 	model.SetTopP(0.9)
@@ -206,7 +206,7 @@ func (c *Client) GenerateHypotheses(ctx context.Context, evidence []types.Eviden
 // AnalyzeImage sends an image (or text description) to Gemini VLM for evidence annotation.
 // Returns a VLMAnnotation describing the contents and forensic significance.
 func (c *Client) AnalyzeImage(ctx context.Context, imageURL string, prompt string) (types.VLMAnnotation, error) {
-	model := c.genClient.GenerativeModel("gemini-2.0-flash")
+	model := c.genClient.GenerativeModel("gemini-3-flash-preview")
 	model.SystemInstruction = genai.NewUserContent(genai.Text("You are a forensic evidence analyst. Analyze the provided evidence and output ONLY valid JSON. No markdown fences."))
 	model.SetTemperature(0.3)
 
@@ -250,20 +250,160 @@ Output a JSON object with exactly these fields:
 
 // GenerateBlueprint takes a room description and generates structured BlueprintData.
 func (c *Client) GenerateBlueprint(ctx context.Context, roomDescription string) (types.BlueprintData, error) {
-	// TODO: Implement Gemini blueprint generation
 	// 1. Load prompt template from prompts/blueprint.tmpl
-	// 2. Send room description to Gemini
-	// 3. Parse structured JSON response into BlueprintData
-	return types.BlueprintData{}, fmt.Errorf("gemini GenerateBlueprint not yet implemented")
+	tmpl, err := loadTemplate("blueprint.tmpl")
+	if err != nil {
+		return types.BlueprintData{}, fmt.Errorf("loading blueprint template: %w", err)
+	}
+
+	// 2. Fill in template with room description
+	var promptBuf bytes.Buffer
+	err = tmpl.Execute(&promptBuf, map[string]string{
+		"RoomDescription": roomDescription,
+	})
+	if err != nil {
+		return types.BlueprintData{}, fmt.Errorf("executing blueprint template: %w", err)
+	}
+
+	// 3. Send to Gemini
+	model := c.genClient.GenerativeModel("gemini-3-flash-preview")
+	model.SystemInstruction = genai.NewUserContent(genai.Text("You are an architectural layout engine. Output ONLY valid JSON. No markdown fences, no explanations, no extra text."))
+	model.SetTemperature(0.3)
+	model.SetTopP(0.9)
+
+	log.Printf("[Gemini] Sending blueprint prompt (%d bytes)", promptBuf.Len())
+
+	resp, err := model.GenerateContent(ctx, genai.Text(promptBuf.String()))
+	if err != nil {
+		return types.BlueprintData{}, fmt.Errorf("gemini GenerateContent failed: %w", err)
+	}
+
+	// 4. Extract and parse the response
+	responseText, err := extractResponseText(resp)
+	if err != nil {
+		return types.BlueprintData{}, fmt.Errorf("extracting Gemini response: %w", err)
+	}
+
+	cleanJSON := stripMarkdownJSON(responseText)
+
+	log.Printf("[Gemini] Received blueprint response (%d bytes)", len(cleanJSON))
+
+	var blueprint types.BlueprintData
+	if err := json.Unmarshal([]byte(cleanJSON), &blueprint); err != nil {
+		log.Printf("[Gemini] Failed to parse blueprint response. Raw:\n%s", cleanJSON)
+		return types.BlueprintData{}, fmt.Errorf("parsing blueprint response: %w", err)
+	}
+
+	log.Printf("[Gemini] Blueprint generated: %.0fm x %.0fm x %.0fm, %d walls, %d furniture",
+		blueprint.Dimensions.Width, blueprint.Dimensions.Depth, blueprint.Dimensions.Height,
+		len(blueprint.Walls), len(blueprint.Furniture))
+
+	return blueprint, nil
 }
 
-// RefineProfile takes a current composite image URL and a refinement instruction,
-// returning the URL of the new composite image (via NanoBanana / Gemini Image API).
-func (c *Client) RefineProfile(ctx context.Context, currentImageURL string, instruction string) (string, error) {
-	// TODO: Implement NanoBanana / Gemini Flash 2.5 Image call
-	// 1. Send current image + instruction
-	// 2. Get refined composite image
-	// 3. Upload to Supabase Storage
-	// 4. Return new image URL
-	return "", fmt.Errorf("gemini RefineProfile not yet implemented")
+// extractImageFromResponse extracts the first image (Blob) from a Gemini response.
+// The gemini-2.5-flash-image model returns image data as genai.Blob parts.
+func extractImageFromResponse(resp *genai.GenerateContentResponse) ([]byte, string, error) {
+	if resp == nil || len(resp.Candidates) == 0 {
+		return nil, "", fmt.Errorf("empty response from Gemini")
+	}
+
+	candidate := resp.Candidates[0]
+	if candidate.Content == nil || len(candidate.Content.Parts) == 0 {
+		return nil, "", fmt.Errorf("no content parts in Gemini response")
+	}
+
+	for _, part := range candidate.Content.Parts {
+		if blob, ok := part.(genai.Blob); ok {
+			if len(blob.Data) > 0 {
+				return blob.Data, blob.MIMEType, nil
+			}
+		}
+	}
+
+	return nil, "", fmt.Errorf("no image data found in Gemini response parts")
+}
+
+// GenerateComposite generates a suspect composite portrait from a text description
+// using the gemini-2.5-flash-image model (NanoBanana pipeline).
+func (c *Client) GenerateComposite(ctx context.Context, description string) ([]byte, string, error) {
+	// 1. Load the profile generation prompt template
+	tmpl, err := loadTemplate("profile_generate.tmpl")
+	if err != nil {
+		return nil, "", fmt.Errorf("loading profile_generate template: %w", err)
+	}
+
+	// 2. Fill in the template
+	var promptBuf bytes.Buffer
+	err = tmpl.Execute(&promptBuf, map[string]string{
+		"Description": description,
+		"WitnessName": "",
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("executing profile_generate template: %w", err)
+	}
+
+	// 3. Send to Gemini image generation model
+	model := c.genClient.GenerativeModel("gemini-2.5-flash-preview-image-generation")
+	model.SetTemperature(0.4)
+	// Note: legacy SDK doesn't support ResponseModalities; the image model returns images by default
+
+	log.Printf("[Gemini] Sending composite generation prompt (%d bytes)", promptBuf.Len())
+
+	resp, err := model.GenerateContent(ctx, genai.Text(promptBuf.String()))
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini GenerateComposite failed: %w", err)
+	}
+
+	// 4. Extract image from response
+	imageBytes, mimeType, err := extractImageFromResponse(resp)
+	if err != nil {
+		return nil, "", fmt.Errorf("extracting composite image: %w", err)
+	}
+
+	log.Printf("[Gemini] Generated composite image: %d bytes, MIME: %s", len(imageBytes), mimeType)
+
+	return imageBytes, mimeType, nil
+}
+
+// RefineComposite generates a refined suspect composite portrait by describing
+// the current composite and applying a modification instruction.
+func (c *Client) RefineComposite(ctx context.Context, currentDescription string, instruction string) ([]byte, string, error) {
+	// 1. Load the refinement prompt template
+	tmpl, err := loadTemplate("profile_refine.tmpl")
+	if err != nil {
+		return nil, "", fmt.Errorf("loading profile_refine template: %w", err)
+	}
+
+	// 2. Fill in the template
+	var promptBuf bytes.Buffer
+	err = tmpl.Execute(&promptBuf, map[string]string{
+		"CurrentImageDescription": currentDescription,
+		"Instruction":             instruction,
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("executing profile_refine template: %w", err)
+	}
+
+	// 3. Send to Gemini image generation model
+	model := c.genClient.GenerativeModel("gemini-2.5-flash-preview-image-generation")
+	model.SetTemperature(0.3)
+	// Note: legacy SDK doesn't support ResponseModalities; the image model returns images by default
+
+	log.Printf("[Gemini] Sending composite refinement prompt (%d bytes)", promptBuf.Len())
+
+	resp, err := model.GenerateContent(ctx, genai.Text(promptBuf.String()))
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini RefineComposite failed: %w", err)
+	}
+
+	// 4. Extract image from response
+	imageBytes, mimeType, err := extractImageFromResponse(resp)
+	if err != nil {
+		return nil, "", fmt.Errorf("extracting refined composite image: %w", err)
+	}
+
+	log.Printf("[Gemini] Generated refined composite: %d bytes, MIME: %s", len(imageBytes), mimeType)
+
+	return imageBytes, mimeType, nil
 }

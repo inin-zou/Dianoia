@@ -3,25 +3,23 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
-	"dianoia/internal/gemini"
+	"dianoia/internal/service"
 	"dianoia/internal/supabase"
 	"dianoia/internal/types"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 )
 
 // ProfilesHandler handles suspect profile endpoints.
 type ProfilesHandler struct {
-	db     *supabase.Client
-	gemini *gemini.Client
+	db               *supabase.Client
+	profilingService *service.ProfilingService
 }
 
 // NewProfilesHandler creates a new ProfilesHandler.
-func NewProfilesHandler(db *supabase.Client, gemini *gemini.Client) *ProfilesHandler {
-	return &ProfilesHandler{db: db, gemini: gemini}
+func NewProfilesHandler(db *supabase.Client, profilingService *service.ProfilingService) *ProfilesHandler {
+	return &ProfilesHandler{db: db, profilingService: profilingService}
 }
 
 // CaseRoutes returns the chi router for /api/cases/{id}/profiles endpoints.
@@ -41,6 +39,8 @@ func (h *ProfilesHandler) ItemRoutes() chi.Router {
 }
 
 // CreateProfile handles POST /api/cases/{id}/profiles.
+// It generates an initial composite image from the description and creates
+// a new suspect profile record.
 func (h *ProfilesHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	caseID := chi.URLParam(r, "id")
 
@@ -55,32 +55,19 @@ func (h *ProfilesHandler) CreateProfile(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	now := time.Now().UTC()
-	profile := map[string]interface{}{
-		"id":                uuid.New().String(),
-		"case_id":           caseID,
-		"name":              req.Name,
-		"description":       req.Description,
-		"current_image_url": nil,
-		"revision_history":  json.RawMessage("[]"),
-		"source_witness_id": req.SourceWitnessID,
-		"metadata":          json.RawMessage("{}"),
-		"created_at":        now.Format(time.RFC3339),
-		"updated_at":        now.Format(time.RFC3339),
-	}
-
-	// TODO: When Gemini/NanoBanana is implemented:
-	// 1. Generate initial composite image from description
-	// 2. Upload to Supabase Storage
-	// 3. Set current_image_url and revision_history
-
-	result, err := h.db.Insert(r.Context(), "suspect_profiles", profile)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create profile: "+err.Error())
+	if req.Description == "" {
+		writeError(w, http.StatusBadRequest, "description is required")
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, result)
+	// Generate composite and create profile via the profiling service
+	profile, err := h.profilingService.GenerateComposite(r.Context(), caseID, req.Name, req.Description, req.SourceWitnessID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to generate composite: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, profile)
 }
 
 // ListProfiles handles GET /api/cases/{id}/profiles.
@@ -115,8 +102,10 @@ func (h *ProfilesHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefineProfile handles POST /api/profiles/{id}/refine.
+// It applies a modification instruction to the existing composite and
+// updates the profile with the new image.
 func (h *ProfilesHandler) RefineProfile(w http.ResponseWriter, r *http.Request) {
-	_ = chi.URLParam(r, "id")
+	profileID := chi.URLParam(r, "id")
 
 	var req types.RefineProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -129,11 +118,12 @@ func (h *ProfilesHandler) RefineProfile(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// TODO: Implement profile refinement pipeline:
-	// 1. Get current profile from Supabase
-	// 2. Call Gemini/NanoBanana with current image + instruction
-	// 3. Upload new image to Supabase Storage
-	// 4. Update profile with new image URL and revision history
+	// Refine the composite via the profiling service
+	profile, err := h.profilingService.RefineComposite(r.Context(), profileID, req.Instruction)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to refine composite: "+err.Error())
+		return
+	}
 
-	writeError(w, http.StatusNotImplemented, "profile refinement not yet implemented - NanoBanana integration pending")
+	writeJSON(w, http.StatusOK, profile)
 }

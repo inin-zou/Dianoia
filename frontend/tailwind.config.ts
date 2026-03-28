@@ -96,6 +96,16 @@ export default {
           "0%": { transform: "translateY(-100%)" },
           "100%": { transform: "translateY(100%)" },
         },
+        "hypothesis-flash": {
+          "0%": { boxShadow: "0 0 0 0 hsl(217 91% 60% / 0.6)", background: "hsl(217 91% 60% / 0.15)" },
+          "30%": { boxShadow: "0 0 20px 4px hsl(217 91% 60% / 0.3)", background: "hsl(217 91% 60% / 0.08)" },
+          "100%": { boxShadow: "0 0 0 0 transparent", background: "transparent" },
+        },
+        "prob-pulse": {
+          "0%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.12)" },
+          "100%": { transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -103,6 +113,8 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "status-blink": "status-blink 1s infinite steps(2)",
         "scan-line": "scan-line 3s linear infinite",
+        "hypothesis-flash": "hypothesis-flash 2s ease-out",
+        "prob-pulse": "prob-pulse 0.6s ease-in-out",
       },
     },
   },
